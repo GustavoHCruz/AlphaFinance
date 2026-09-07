@@ -1,0 +1,16 @@
+{
+  "name": "alphafinance",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css,json}\" \"*.{json,yml,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}

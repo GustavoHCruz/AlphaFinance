@@ -1,0 +1,37 @@
+const assert=require('node:assert/strict');
+const base='http://localhost:3311/';
+async function api(path,method='GET',body,status=200){const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const json=await r.json();assert.equal(r.status,status,JSON.stringify(json));return json;}
+const create=(body)=>api('entries','POST',{description:'Check',kind:'expense',amount:100,date:'2026-09-01',...body},201);
+const dashboard=(month='2026-09')=>api('dashboard?month='+month);
+const patch=(e,body)=>api('entries/'+e.id,'PATCH',body);
+(async()=>{
+ const salary=await api('tags','POST',{name:'Salário',kind:'income',type:'category',color:'#328160'},201);
+ await api('tags','POST',{name:'Extras',kind:'income',type:'category',color:'#5599aa'},201);
+ await api('tags','POST',{name:'Reembolso',kind:'income',type:'category',color:'#bb8844'},201);
+ await api('tags','POST',{name:'Reserva',kind:'investment',type:'label',color:'#bb8844'},201);
+ const income=await create({description:'Salário',kind:'income',amount:100000,categoryId:salary.id,recurring:true});
+ const bill=await create({description:'Internet',kind:'bill',amount:12000,expectedAmount:12000,recurring:true});
+ assert.equal((await dashboard()).summary.remaining,100000,'unpaid bills do not reduce available balance');
+ await patch(bill,{done:true,paidAmount:9000});assert.equal((await dashboard()).summary.remaining,91000);
+ await patch(bill,{done:false,paidAmount:null});assert.equal((await dashboard()).summary.remaining,100000);
+ const fixed=await create({description:'Reserva mensal',kind:'investment',amount:20000,recurring:true});
+ assert.equal(fixed.done,false);assert.equal(fixed.estimated,true);assert.equal(fixed.expectedAmount,20000);
+ await api('entries/'+fixed.id,'PATCH',{done:true},400);
+ await patch(fixed,{done:true,paidAmount:17000});
+ let d=await dashboard();let e=d.entries.find(e=>e.id===fixed.id);assert.equal(e.amount,17000);assert.equal(e.expectedAmount,20000);assert.equal(e.estimated,false);
+ let next=await dashboard('2026-10');let nf=next.entries.find(e=>e.recurrenceId===fixed.recurrenceId);assert.equal(nf.done,false);assert.equal(nf.amount,20000);
+ const percent=await create({description:'Aposentadoria',kind:'investment',amount:0,percentageBps:1500,incomeCategoryId:salary.id,recurring:true});assert.equal(percent.amount,15000);
+ await patch(percent,{done:true,paidAmount:14000});await patch(income,{amount:200000});
+ d=await dashboard();e=d.entries.find(e=>e.id===percent.id);assert.equal(e.amount,14000);assert.equal(e.expectedAmount,15000);
+ await patch(percent,{done:false,paidAmount:null});d=await dashboard();assert.equal(d.entries.find(e=>e.id===percent.id).amount,30000);
+ await patch(fixed,{done:false,paidAmount:null});d=await dashboard();assert.equal(d.entries.find(e=>e.id===fixed.id).amount,20000);
+ await patch(fixed,{done:true,paidAmount:0});d=await dashboard();assert.equal(d.entries.find(e=>e.id===fixed.id).amount,0);
+ await api('carryover?month=2026-10','PUT',{enabled:true});next=await dashboard('2026-10');assert.equal(next.previousBalance,170000);assert.equal(next.entries.find(e=>e.isCarryover).amount,170000);
+ await patch(bill,{done:true,paidAmount:10000});next=await dashboard('2026-10');assert.equal(next.previousBalance,160000);
+ await api('tags','POST',{name:'Invalid',type:'category',kind:'investment',color:'#ffffff'},400);
+ await api('tags/'+salary.id+'/copy','POST',{kind:'investment'},400);
+ await api('profile','PUT',{locale:'en-US',currency:'USD'});d=await dashboard();assert.equal(d.profile.locale,'en-US');assert.equal(d.profile.currency,'USD');assert.equal('name' in d.profile,false);assert.equal('photo' in d.profile,false);
+ await api('profile','PUT',{locale:'pt-BR',currency:'BRL'});
+ await create({description:'Energia',kind:'bill',amount:23000,date:'2026-09-06'});
+ console.log('PASS: paid-only bill balance, carryover recalculation, fixed and percentage investment estimates, actual amounts, independent monthly completion, zero amounts, undo, categories removed, locale/currency settings.');
+})().catch(e=>{console.error(e);process.exit(1)});
