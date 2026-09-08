@@ -1,20 +1,43 @@
 # AlphaFinance
 
-Controlador financeiro pessoal com entradas, gastos, contas mensais recorrentes, investimentos, categorias, labels e gráficos. Interface em português e inglês, configurações de idioma e moeda, sem login.
+Personal finance management with a NestJS API, a Next.js web app, and PostgreSQL.
+Track income, expenses, recurring bills, and investments.
 
-## Executar
+## Requirements
 
-Com Docker e Docker Compose instalados e em execução:
+- Docker Engine with Docker Compose, or Docker Desktop
 
-```sh
-docker compose up -d --build
+## Run
+
+Copy `.env.example` to `.env`, configure the required values, and run from the
+repository root:
+
+```bash
+docker compose up --build
 ```
 
-- Aplicação: http://localhost:3100 (ajustável por `WEB_PORT` no `.env`).
-- API / Swagger: http://localhost:3001/docs (a raiz redireciona para `/docs`).
+## Local services
 
-O PostgreSQL é persistido em um volume Docker. Para parar: `docker compose down`. Não use `down -v` se quiser preservar os dados. Opcionalmente copie `.env.example` para `.env` e ajuste as credenciais antes da primeira execução.
+| Service           | Address                      |
+| ----------------- | ---------------------------- |
+| Web               | <http://localhost:3000>      |
+| API documentation | <http://localhost:8000/docs> |
+| PostgreSQL        | `localhost:5432`             |
 
-`apps/api/src`: NestJS + TypeORM, migrations e resources com models, services e controllers. `apps/web/src`: Next.js, componentes e traduções. Portas acessíveis somente no próprio computador, sem autenticação.
+These are the default addresses. Local ports can be configured through `WEB_PORT`,
+`API_PORT`, and `POSTGRES_PORT` in `.env`. Set `WEB_URL` and `API_URL` to the public
+HTTPS addresses when using a tunnel; local ports remain independent.
 
-Contas mensais compartilham o valor esperado na série; ao concluir, informe o valor efetivamente pago naquele mês. O saldo disponível desconta somente as contas pagas. Investimentos reservam o valor esperado até a confirmação do valor efetivamente guardado. Ative o saldo anterior em cada mês para incluí-lo como primeira entrada automática. Categorias e labels podem ser ordenadas e copiadas entre tipos. Gastos do dia a dia não têm repetição. Investimentos podem ser fixos ou um percentual das entradas totais (incluindo saldo anterior) ou de uma categoria de receita. A moeda altera a exibição, sem conversão.
+All published ports are bound to `127.0.0.1`.
+
+Stop the application while preserving its data:
+
+```bash
+docker compose down
+```
+
+Remove the application and all persisted data:
+
+```bash
+docker compose down --volumes
+```

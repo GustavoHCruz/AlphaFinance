@@ -1,24 +1,32 @@
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { json } from 'express';
-import { AppModule } from './app.module';
+import { ValidationPipe } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { json } from "express";
+import "reflect-metadata";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.use(json({ limit: '3mb' }));
+  app.use(json({ limit: "3mb" }));
+  app.enableCors({
+    origin: new URL(process.env.WEB_URL || "http://localhost:3000").origin,
+  });
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
   );
   const config = new DocumentBuilder()
-    .setTitle('AlphaFinance API')
+    .setTitle("AlphaFinance API")
     .setDescription(
-      'Local personal finance. Values are integer cents; dates are YYYY-MM-DD. No authentication.',
+      "Local personal finance. Values are integer cents; dates are YYYY-MM-DD. No authentication.",
     )
-    .setVersion('1.0')
+    .setVersion("1.0")
+    .addServer(process.env.API_URL || "http://localhost:8000")
     .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
-  await app.listen(3001, '0.0.0.0');
+  SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, config));
+  await app.listen(Number(process.env.API_PORT || 8000), "0.0.0.0");
 }
 void bootstrap();

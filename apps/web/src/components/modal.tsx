@@ -1,8 +1,8 @@
-'use client';
-import { useEffect, useRef, useId } from 'react';
-import { X } from 'lucide-react';
+"use client";
+import { X } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
 let openModals = 0;
-let originalOverflow = '';
+let originalOverflow = "";
 export function Modal({
   title,
   close,
@@ -20,7 +20,7 @@ export function Modal({
     const dialog = ref.current;
     dialog?.showModal();
     if (openModals++ === 0) originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
       dialog?.close();
       if (--openModals === 0) document.body.style.overflow = originalOverflow;
@@ -50,7 +50,12 @@ export function Modal({
     >
       <div className="modal-heading">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" className="icon-button" onClick={close} aria-label={closeLabel}>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={close}
+          aria-label={closeLabel}
+        >
           <X size={20} />
         </button>
       </div>

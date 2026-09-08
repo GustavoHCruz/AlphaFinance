@@ -1,8 +1,8 @@
-'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { GripVertical, Tag as TagIcon } from 'lucide-react';
-import type { Tag } from '@/lib/types';
-import type { Dictionary } from '@/lib/i18n';
+"use client";
+import type { Dictionary } from "@/lib/i18n";
+import type { Tag } from "@/lib/types";
+import { GripVertical, Tag as TagIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function TagSorter({
   tags,
@@ -44,27 +44,40 @@ export function TagSorter({
       setItems(origin.current);
       return;
     }
-    if (order.current.some((tag, index) => tag.id !== origin.current[index]?.id))
+    if (
+      order.current.some((tag, index) => tag.id !== origin.current[index]?.id)
+    )
       reorder(order.current.map((tag) => tag.id));
   }
   return (
-    <div className="tag-list" ref={list}
-      onPointerMove={e => {
-        if (!draggingId.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
-        const target = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-sort-id]');
-        if (target && list.current?.contains(target)) move(draggingId.current, target.dataset.sortId!);
+    <div
+      className="tag-list"
+      ref={list}
+      onPointerMove={(e) => {
+        if (
+          !draggingId.current ||
+          !e.currentTarget.hasPointerCapture(e.pointerId)
+        )
+          return;
+        const target = document
+          .elementFromPoint(e.clientX, e.clientY)
+          ?.closest<HTMLElement>("[data-sort-id]");
+        if (target && list.current?.contains(target))
+          move(draggingId.current, target.dataset.sortId!);
       }}
-      onPointerUp={e => {
+      onPointerUp={(e) => {
         if (!draggingId.current) return;
-        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+        if (e.currentTarget.hasPointerCapture(e.pointerId))
+          e.currentTarget.releasePointerCapture(e.pointerId);
         finish();
       }}
-      onPointerCancel={() => finish(true)}>
+      onPointerCancel={() => finish(true)}
+    >
       {items.map((tag) => (
         <div
           key={tag.id}
           data-sort-id={tag.id}
-          className={`tag-row ${active === tag.id ? 'dragging' : ''}`}
+          className={`tag-row ${active === tag.id ? "dragging" : ""}`}
         >
           <button
             type="button"
@@ -80,11 +93,14 @@ export function TagSorter({
               list.current?.setPointerCapture(e.pointerId);
             }}
             onKeyDown={(e) => {
-              if (!['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+              if (!["ArrowUp", "ArrowDown"].includes(e.key)) return;
               e.preventDefault();
               origin.current = [...order.current];
-              const index = order.current.findIndex((item) => item.id === tag.id);
-              const target = order.current[index + (e.key === 'ArrowUp' ? -1 : 1)];
+              const index = order.current.findIndex(
+                (item) => item.id === tag.id,
+              );
+              const target =
+                order.current[index + (e.key === "ArrowUp" ? -1 : 1)];
               if (target) {
                 move(tag.id, target.id);
                 finish();
@@ -93,7 +109,10 @@ export function TagSorter({
           >
             <GripVertical size={19} />
           </button>
-          <span className="tag-swatch" style={{ background: `${tag.color}1a`, color: tag.color }}>
+          <span
+            className="tag-swatch"
+            style={{ background: `${tag.color}1a`, color: tag.color }}
+          >
             <TagIcon size={18} />
           </span>
           <strong>{tag.name}</strong>

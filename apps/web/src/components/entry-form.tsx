@@ -1,10 +1,16 @@
-'use client';
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowDownLeft, ArrowUpRight, ReceiptText, Repeat2, TrendingUp } from 'lucide-react';
-import type { Dashboard, Entry, Kind } from '@/lib/types';
-import type { Dictionary } from '@/lib/i18n';
-import { api, cents, localDate, localMonth } from '@/lib/api';
-import { CategoryPicker } from './category-picker';
+"use client";
+import { api, cents, localDate, localMonth } from "@/lib/api";
+import type { Dictionary } from "@/lib/i18n";
+import type { Dashboard, Entry, Kind } from "@/lib/types";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ReceiptText,
+  Repeat2,
+  TrendingUp,
+} from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CategoryPicker } from "./category-picker";
 
 export function EntryForm({
   t,
@@ -27,15 +33,27 @@ export function EntryForm({
   close: () => void;
   onKindChange?: (kind: Kind) => void;
 }) {
-  const [kind, setKind] = useState<Kind>(entry?.kind || initialKind || 'expense');
+  const [kind, setKind] = useState<Kind>(
+    entry?.kind || initialKind || "expense",
+  );
   const [labels, setLabels] = useState<string[]>(entry?.labelIds || []);
-  const [category, setCategory] = useState(entry?.categoryId || '');
+  const [category, setCategory] = useState(entry?.categoryId || "");
   const [billDone, setBillDone] = useState(entry?.done || false);
-  const [percentageMode, setPercentageMode] = useState(entry?.percentageBps != null);
-  const [percentage, setPercentage] = useState(String((entry?.percentageBps || 1500) / 100));
-  const [incomeCategory, setIncomeCategory] = useState(entry?.incomeCategoryId || '');
-  const [confirmed, setConfirmed] = useState(entry?.kind === 'investment' && entry.done);
-  const [recurring, setRecurring] = useState((entry?.kind || initialKind) === 'bill');
+  const [percentageMode, setPercentageMode] = useState(
+    entry?.percentageBps != null,
+  );
+  const [percentage, setPercentage] = useState(
+    String((entry?.percentageBps || 1500) / 100),
+  );
+  const [incomeCategory, setIncomeCategory] = useState(
+    entry?.incomeCategoryId || "",
+  );
+  const [confirmed, setConfirmed] = useState(
+    entry?.kind === "investment" && entry.done,
+  );
+  const [recurring, setRecurring] = useState(
+    (entry?.kind || initialKind) === "bill",
+  );
   const [date, setDate] = useState(
     entry?.date || (month === localMonth() ? localDate() : `${month}-01`),
   );
@@ -61,18 +79,20 @@ export function EntryForm({
   const base = (previewData?.entries || [])
     .filter(
       (e) =>
-        e.kind === 'income' &&
+        e.kind === "income" &&
         e.id !== entry?.id &&
         (!incomeCategory || e.categoryId === incomeCategory),
     )
     .reduce((sum, e) => sum + e.amount, 0);
-  const estimate = Math.round((Math.max(0, base) * Math.round(Number(percentage) * 100)) / 10000);
+  const estimate = Math.round(
+    (Math.max(0, base) * Math.round(Number(percentage) * 100)) / 10000,
+  );
   const money = (value: number) =>
     new Intl.NumberFormat(data.profile.locale, {
-      style: 'currency',
+      style: "currency",
       currency: data.profile.currency,
     }).format(value / 100);
-  const percentageInvestment = kind === 'investment' && percentageMode;
+  const percentageInvestment = kind === "investment" && percentageMode;
   const title = {
     income: t.newIncome,
     expense: t.newExpense,
@@ -95,57 +115,63 @@ export function EntryForm({
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    await save(entry ? `entries/${entry.id}` : 'entries', entry ? 'PATCH' : 'POST', {
-      description: String(f.get('description')).trim(),
-      kind,
-      amount:
-        kind === 'bill'
-          ? cents(f.get('expectedAmount'))
-          : percentageInvestment
-            ? 0
-            : cents(f.get('amount')),
-      date,
-      categoryId: kind === 'investment' ? null : category || null,
-      labelIds: labels,
-      method: kind === 'investment' ? 'transfer' : f.get('method'),
-      done: kind === 'investment' ? confirmed : kind === 'bill' && billDone,
-      expectedAmount:
-        kind === 'bill'
-          ? cents(f.get('expectedAmount'))
-          : kind === 'investment'
-            ? percentageInvestment
-              ? estimate
-              : cents(f.get('amount'))
+    await save(
+      entry ? `entries/${entry.id}` : "entries",
+      entry ? "PATCH" : "POST",
+      {
+        description: String(f.get("description")).trim(),
+        kind,
+        amount:
+          kind === "bill"
+            ? cents(f.get("expectedAmount"))
+            : percentageInvestment
+              ? 0
+              : cents(f.get("amount")),
+        date,
+        categoryId: kind === "investment" ? null : category || null,
+        labelIds: labels,
+        method: kind === "investment" ? "transfer" : f.get("method"),
+        done: kind === "investment" ? confirmed : kind === "bill" && billDone,
+        expectedAmount:
+          kind === "bill"
+            ? cents(f.get("expectedAmount"))
+            : kind === "investment"
+              ? percentageInvestment
+                ? estimate
+                : cents(f.get("amount"))
+              : null,
+        paidAmount:
+          (kind === "bill" && billDone) || (kind === "investment" && confirmed)
+            ? cents(f.get("paidAmount"))
             : null,
-      paidAmount:
-        (kind === 'bill' && billDone) || (kind === 'investment' && confirmed)
-          ? cents(f.get('paidAmount'))
+        percentageBps: percentageInvestment
+          ? Math.round(Number(percentage) * 100)
           : null,
-      percentageBps: percentageInvestment ? Math.round(Number(percentage) * 100) : null,
-      incomeCategoryId: percentageInvestment ? incomeCategory || null : null,
-      estimated: kind === 'investment' && !confirmed,
-      ...(!entry ? { recurring: kind !== 'expense' && recurring } : {}),
-    });
+        incomeCategoryId: percentageInvestment ? incomeCategory || null : null,
+        estimated: kind === "investment" && !confirmed,
+        ...(!entry ? { recurring: kind !== "expense" && recurring } : {}),
+      },
+    );
   }
   return (
     <form onSubmit={submit} className={`form entry-form entry-form-${kind}`}>
       <div className="entry-kind-selector" role="group" aria-label={t.type}>
-        {(['income', 'expense', 'bill', 'investment'] as Kind[]).map((k) => {
+        {(["income", "expense", "bill", "investment"] as Kind[]).map((k) => {
           const KIcon = icons[k];
           return (
             <button
               type="button"
               key={k}
-              className={`kind-choice kind-${k} ${kind === k ? 'selected' : ''}`}
+              className={`kind-choice kind-${k} ${kind === k ? "selected" : ""}`}
               aria-pressed={kind === k}
               onClick={() => {
                 setKind(k);
                 onKindChange?.(k);
                 setLabels([]);
-                setCategory('');
+                setCategory("");
                 setBillDone(false);
                 setConfirmed(false);
-                setRecurring(k === 'bill');
+                setRecurring(k === "bill");
               }}
             >
               <KIcon size={20} />
@@ -162,9 +188,9 @@ export function EntryForm({
         </div>
       </div>
       <label>
-        {kind === 'income'
+        {kind === "income"
           ? t.incomeDescription
-          : kind === 'expense'
+          : kind === "expense"
             ? t.expenseDescription
             : t.description}
         <input
@@ -175,20 +201,20 @@ export function EntryForm({
           autoFocus
         />
       </label>
-      {kind === 'investment' && (
+      {kind === "investment" && (
         <fieldset>
           <legend>{t.calculationMode}</legend>
           <div className="type-selector">
             <button
               type="button"
-              className={!percentageMode ? 'selected' : ''}
+              className={!percentageMode ? "selected" : ""}
               onClick={() => setPercentageMode(false)}
             >
               {t.fixedAmount}
             </button>
             <button
               type="button"
-              className={percentageMode ? 'selected' : ''}
+              className={percentageMode ? "selected" : ""}
               onClick={() => {
                 setPercentageMode(true);
                 if (!entry) setRecurring(true);
@@ -217,7 +243,9 @@ export function EntryForm({
             <CategoryPicker
               title={t.incomeBase}
               noneLabel={t.allIncome}
-              tags={data.tags.filter((tag) => tag.type === 'category' && tag.kind === 'income')}
+              tags={data.tags.filter(
+                (tag) => tag.type === "category" && tag.kind === "income",
+              )}
               value={incomeCategory}
               onChange={setIncomeCategory}
             />
@@ -226,30 +254,34 @@ export function EntryForm({
             <span>
               {t.estimatedValue}
               <small>
-                {percentage || '0'}% × {previewData ? money(base) : '—'}
+                {percentage || "0"}% × {previewData ? money(base) : "—"}
               </small>
             </span>
-            <strong>{previewData && Number.isFinite(estimate) ? money(estimate) : '—'}</strong>
+            <strong>
+              {previewData && Number.isFinite(estimate) ? money(estimate) : "—"}
+            </strong>
           </div>
           <p className="form-note">{t.percentageHint}</p>
           <p className="form-note">{t.estimateHint}</p>
         </section>
       )}
-      <div className={`form-grid ${kind !== 'investment' ? 'entry-details-grid' : ''}`}>
-        {kind !== 'bill' && !percentageInvestment && (
+      <div
+        className={`form-grid ${kind !== "investment" ? "entry-details-grid" : ""}`}
+      >
+        {kind !== "bill" && !percentageInvestment && (
           <label>
-            {kind === 'income'
+            {kind === "income"
               ? t.incomeAmount
-              : kind === 'investment'
+              : kind === "investment"
                 ? t.expectedAmount
-                : t.expenseAmount}{' '}
+                : t.expenseAmount}{" "}
             ({data.profile.currency})
             <input
               key={`${percentageInvestment}-${confirmed}`}
               name="amount"
               type="number"
               step="0.01"
-              min={kind === 'income' ? -10000000 : 0}
+              min={kind === "income" ? -10000000 : 0}
               max="10000000"
               required
               defaultValue={
@@ -259,13 +291,13 @@ export function EntryForm({
                     : estimate / 100
                   : entry
                     ? entry.amount / 100
-                    : ''
+                    : ""
               }
               placeholder="0.00"
             />
           </label>
         )}
-        {kind === 'bill' && (
+        {kind === "bill" && (
           <label>
             {t.expectedAmount} ({data.profile.currency})
             <input
@@ -275,7 +307,9 @@ export function EntryForm({
               max="10000000"
               step="0.01"
               required
-              defaultValue={entry ? (entry.expectedAmount ?? entry.amount) / 100 : ''}
+              defaultValue={
+                entry ? (entry.expectedAmount ?? entry.amount) / 100 : ""
+              }
             />
             <small>{t.expectedAmountHint}</small>
           </label>
@@ -287,37 +321,41 @@ export function EntryForm({
             required
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            min={entry?.recurrenceId ? `${month}-01` : '1900-01-01'}
+            min={entry?.recurrenceId ? `${month}-01` : "1900-01-01"}
             max={
               entry?.recurrenceId
                 ? `${month}-${new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate()}`
-                : '2199-12-31'
+                : "2199-12-31"
             }
           />
         </label>
-        {kind !== 'investment' && (
+        {kind !== "investment" && (
           <label>
             {t.method}
-            <select name="method" defaultValue={entry?.method || 'pix'}>
-              {(['pix', 'credit', 'debit', 'cash', 'transfer'] as const).map((m) => (
-                <option key={m} value={m}>
-                  {t[m]}
-                </option>
-              ))}
+            <select name="method" defaultValue={entry?.method || "pix"}>
+              {(["pix", "credit", "debit", "cash", "transfer"] as const).map(
+                (m) => (
+                  <option key={m} value={m}>
+                    {t[m]}
+                  </option>
+                ),
+              )}
             </select>
           </label>
         )}
       </div>
-      {kind !== 'investment' && (
+      {kind !== "investment" && (
         <CategoryPicker
           title={t.category}
           noneLabel={t.uncategorized}
-          tags={data.tags.filter((tag) => tag.type === 'category' && tag.kind === kind)}
+          tags={data.tags.filter(
+            (tag) => tag.type === "category" && tag.kind === kind,
+          )}
           value={category}
           onChange={setCategory}
         />
       )}
-      {kind === 'investment' && (
+      {kind === "investment" && (
         <>
           <label className="checkbox-line">
             <input
@@ -340,7 +378,9 @@ export function EntryForm({
                 max="10000000"
                 step="0.01"
                 required
-                defaultValue={entry?.paidAmount != null ? entry.paidAmount / 100 : ''}
+                defaultValue={
+                  entry?.paidAmount != null ? entry.paidAmount / 100 : ""
+                }
               />
             </label>
           )}
@@ -350,13 +390,15 @@ export function EntryForm({
         <legend>{t.labels}</legend>
         <div className="label-picker">
           {data.tags
-            .filter((tag) => tag.type === 'label' && tag.kind === kind)
+            .filter((tag) => tag.type === "label" && tag.kind === kind)
             .map((tag) => (
               <button
                 key={tag.id}
                 type="button"
-                className={`chip ${labels.includes(tag.id) ? 'chosen' : ''}`}
-                style={{ borderColor: labels.includes(tag.id) ? tag.color : undefined }}
+                className={`chip ${labels.includes(tag.id) ? "chosen" : ""}`}
+                style={{
+                  borderColor: labels.includes(tag.id) ? tag.color : undefined,
+                }}
                 aria-pressed={labels.includes(tag.id)}
                 onClick={() =>
                   setLabels(
@@ -370,13 +412,13 @@ export function EntryForm({
                 {tag.name}
               </button>
             ))}
-          {!data.tags.some((tag) => tag.type === 'label' && tag.kind === kind) && (
-            <span className="muted">{t.noTags}</span>
-          )}
+          {!data.tags.some(
+            (tag) => tag.type === "label" && tag.kind === kind,
+          ) && <span className="muted">{t.noTags}</span>}
         </div>
       </fieldset>
-      {kind === 'income' && <p className="form-note">{t.negativeHint}</p>}
-      {kind === 'bill' && (
+      {kind === "income" && <p className="form-note">{t.negativeHint}</p>}
+      {kind === "bill" && (
         <label className="checkbox-line">
           <input
             type="checkbox"
@@ -389,7 +431,7 @@ export function EntryForm({
           </span>
         </label>
       )}
-      {kind === 'bill' && billDone && (
+      {kind === "bill" && billDone && (
         <label>
           {t.paidAmount} ({data.profile.currency})
           <input
@@ -399,12 +441,14 @@ export function EntryForm({
             max="10000000"
             step="0.01"
             required
-            defaultValue={entry?.paidAmount != null ? entry.paidAmount / 100 : ''}
+            defaultValue={
+              entry?.paidAmount != null ? entry.paidAmount / 100 : ""
+            }
           />
           <small>{t.paidAmountHint}</small>
         </label>
       )}
-      {!entry && kind !== 'expense' ? (
+      {!entry && kind !== "expense" ? (
         <label className="checkbox-line recurrence-option">
           <input
             type="checkbox"
@@ -418,15 +462,22 @@ export function EntryForm({
         </label>
       ) : (
         entry?.recurrenceId && (
-          <p className="form-note">{kind === 'bill' ? t.billEditHint : t.editHint}</p>
+          <p className="form-note">
+            {kind === "bill" ? t.billEditHint : t.editHint}
+          </p>
         )
       )}
       <div className="form-actions">
-        <button className="button secondary" type="button" onClick={close} disabled={busy}>
+        <button
+          className="button secondary"
+          type="button"
+          onClick={close}
+          disabled={busy}
+        >
           {t.cancel}
         </button>
         <button
-          className={`button ${kind === 'income' ? 'income-action' : kind === 'expense' ? 'expense-action' : 'primary'}`}
+          className={`button ${kind === "income" ? "income-action" : kind === "expense" ? "expense-action" : "primary"}`}
           disabled={busy}
         >
           {busy ? t.saving : t.save}

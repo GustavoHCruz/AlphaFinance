@@ -1,14 +1,24 @@
-'use client';
-import type { Dashboard } from '@/lib/types';
-import type { Dictionary } from '@/lib/i18n';
+"use client";
+import type { Dictionary } from "@/lib/i18n";
+import type { Dashboard } from "@/lib/types";
 
-type Props = { data: Dashboard; t: Dictionary; money: (n: number) => string; locale: string };
+type Props = {
+  data: Dashboard;
+  t: Dictionary;
+  money: (n: number) => string;
+  locale: string;
+};
 export function CashFlow({ data, t, money, locale }: Props) {
   const max = Math.max(
     100,
-    ...data.history.flatMap((h) => [h.income, h.expenses + h.bills + h.invested]),
+    ...data.history.flatMap((h) => [
+      h.income,
+      h.expenses + h.bills + h.invested,
+    ]),
   );
-  const active = data.history.some((h) => h.income || h.expenses || h.bills || h.invested);
+  const active = data.history.some(
+    (h) => h.income || h.expenses || h.bills || h.invested,
+  );
   return (
     <section className="panel chart-panel">
       <div className="panel-heading">
@@ -30,14 +40,14 @@ export function CashFlow({ data, t, money, locale }: Props) {
       <div
         className="bar-chart"
         role="img"
-        aria-label={`${t.cashflow}: ${data.history.map((h) => `${h.month}: ${t.income} ${money(h.income)}, ${t.totalOut} ${money(h.expenses + h.bills + h.invested)}`).join('; ')}`}
+        aria-label={`${t.cashflow}: ${data.history.map((h) => `${h.month}: ${t.income} ${money(h.income)}, ${t.totalOut} ${money(h.expenses + h.bills + h.invested)}`).join("; ")}`}
       >
         <div className="chart-grid">
           {[1, 0.75, 0.5, 0.25, 0].map((p) => (
             <div key={p}>
               <span>
                 {new Intl.NumberFormat(locale, {
-                  notation: 'compact',
+                  notation: "compact",
                   maximumFractionDigits: 1,
                 }).format((max * p) / 100)}
               </span>
@@ -47,7 +57,10 @@ export function CashFlow({ data, t, money, locale }: Props) {
         </div>
         <div className="bar-groups">
           {data.history.map((h, i) => (
-            <div className={`bar-group ${i === 5 ? 'current' : ''}`} key={h.month}>
+            <div
+              className={`bar-group ${i === 5 ? "current" : ""}`}
+              key={h.month}
+            >
               <div className="bars">
                 <div
                   className="bar income-bar"
@@ -56,14 +69,16 @@ export function CashFlow({ data, t, money, locale }: Props) {
                 />
                 <div
                   className="bar expense-bar"
-                  style={{ height: `${((h.expenses + h.bills + h.invested) / max) * 100}%` }}
+                  style={{
+                    height: `${((h.expenses + h.bills + h.invested) / max) * 100}%`,
+                  }}
                   title={`${t.totalOut}: ${money(h.expenses + h.bills + h.invested)}`}
                 />
               </div>
               <span>
                 {new Date(`${h.month}-01T12:00:00`)
-                  .toLocaleDateString(locale, { month: 'short' })
-                  .replace('.', '')}
+                  .toLocaleDateString(locale, { month: "short" })
+                  .replace(".", "")}
               </span>
             </div>
           ))}
@@ -82,10 +97,19 @@ export function CashFlow({ data, t, money, locale }: Props) {
 export function SpendingChart({ data, t, money }: Props) {
   const map = new Map<string, number>();
   data.entries
-    .filter((e) => e.kind === 'expense' || e.kind === 'bill')
-    .forEach((e) => map.set(e.categoryId || '', (map.get(e.categoryId || '') || 0) + e.amount));
+    .filter((e) => e.kind === "expense" || e.kind === "bill")
+    .forEach((e) =>
+      map.set(
+        e.categoryId || "",
+        (map.get(e.categoryId || "") || 0) + e.amount,
+      ),
+    );
   const groups = [...map]
-    .map(([id, amount]) => ({ id, amount, tag: data.tags.find((t) => t.id === id) }))
+    .map(([id, amount]) => ({
+      id,
+      amount,
+      tag: data.tags.find((t) => t.id === id),
+    }))
     .sort((a, b) => b.amount - a.amount);
   const total = groups.reduce((s, g) => s + g.amount, 0);
   let cursor = 0;
@@ -94,9 +118,9 @@ export function SpendingChart({ data, t, money }: Props) {
     .map((g) => {
       const start = cursor;
       cursor += (g.amount / total) * 100;
-      return `${g.tag?.color || '#b9b9ae'} ${start}% ${cursor}%`;
+      return `${g.tag?.color || "#b9b9ae"} ${start}% ${cursor}%`;
     })
-    .join(',');
+    .join(",");
   return (
     <section className="panel chart-panel">
       <div className="panel-heading">
@@ -110,7 +134,9 @@ export function SpendingChart({ data, t, money }: Props) {
           className="donut"
           role="img"
           aria-label={`${t.totalOut}: ${money(total)}`}
-          style={{ background: gradient ? `conic-gradient(${gradient})` : '#eeeee8' }}
+          style={{
+            background: gradient ? `conic-gradient(${gradient})` : "#eeeee8",
+          }}
         >
           <div>
             <small>{t.totalOut}</small>
@@ -123,11 +149,17 @@ export function SpendingChart({ data, t, money }: Props) {
           groups.map((g) => (
             <div key={g.id}>
               <span>
-                <i className="dot" style={{ background: g.tag?.color || '#b9b9ae' }} />
+                <i
+                  className="dot"
+                  style={{ background: g.tag?.color || "#b9b9ae" }}
+                />
                 {g.tag?.name || t.uncategorized}
               </span>
               <strong>
-                {money(g.amount)} <small>{total ? Math.round((g.amount / total) * 100) : 0}%</small>
+                {money(g.amount)}{" "}
+                <small>
+                  {total ? Math.round((g.amount / total) * 100) : 0}%
+                </small>
               </strong>
             </div>
           ))

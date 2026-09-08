@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 export class InitialSchema1788650000000 implements MigrationInterface {
   async up(q: QueryRunner): Promise<void> {
     await q.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -12,6 +12,6 @@ export class InitialSchema1788650000000 implements MigrationInterface {
     `);
   }
   async down(q: QueryRunner): Promise<void> {
-    await q.query('DROP TABLE entries, recurrences, profiles, goals, tags');
+    await q.query("DROP TABLE entries, recurrences, profiles, goals, tags");
   }
 }

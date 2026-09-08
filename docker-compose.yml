@@ -3,8 +3,10 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alphafinance}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphafinance_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphafinance}
       POSTGRES_DB: ${POSTGRES_DB:-alphafinance}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -13,17 +15,22 @@ services:
       timeout: 5s
       retries: 15
     restart: unless-stopped
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_HOST: db
-      DATABASE_USER: ${POSTGRES_USER:-alphafinance}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-alphafinance_local}
-      DATABASE_NAME: ${POSTGRES_DB:-alphafinance}
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-alphafinance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphafinance}
+      POSTGRES_DB: ${POSTGRES_DB:-alphafinance}
+      API_PORT: 8000
+      API_URL: ${API_URL:-http://localhost:8000}
+      WEB_URL: ${WEB_URL:-http://localhost:3000}
     ports:
-      - '127.0.0.1:3001:3001'
+      - '127.0.0.1:${API_PORT:-8000}:8000'
     depends_on:
       db:
         condition: service_healthy
@@ -33,20 +40,21 @@ services:
           'CMD',
           'node',
           '-e',
-          "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:8000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 15
     restart: unless-stopped
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     environment:
-      API_INTERNAL_URL: http://api:3001
+      API_INTERNAL_URL: http://api:8000
     ports:
-      - '127.0.0.1:${WEB_PORT:-3100}:3000'
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
     depends_on:
       api:
         condition: service_healthy

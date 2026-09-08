@@ -1,11 +1,11 @@
-'use client';
-import type { Entry, Kind, Profile, Tag } from '@/lib/types';
-import type { Dictionary } from '@/lib/i18n';
-import { cents } from '@/lib/api';
+"use client";
+import { cents } from "@/lib/api";
+import type { Dictionary } from "@/lib/i18n";
+import type { Entry, Kind, Profile, Tag } from "@/lib/types";
 
 type Save = (path: string, method: string, body: unknown) => Promise<boolean>;
 type Common = { t: Dictionary; save: Save; busy: boolean; close: () => void };
-export { EntryForm } from './entry-form';
+export { EntryForm } from "./entry-form";
 export function BillPaymentForm({
   t,
   entry,
@@ -16,24 +16,27 @@ export function BillPaymentForm({
   close,
 }: Common & { entry: Entry; currency: string; locale: string }) {
   const expected = entry.expectedAmount ?? entry.amount;
-  const investment = entry.kind === 'investment';
+  const investment = entry.kind === "investment";
   return (
     <form
       className="form"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await save(`entries/${entry.id}`, 'PATCH', {
+        await save(`entries/${entry.id}`, "PATCH", {
           done: true,
-          paidAmount: cents(f.get('paidAmount')),
+          paidAmount: cents(f.get("paidAmount")),
         });
       }}
     >
       <div className="payment-summary">
         <strong>{entry.description}</strong>
         <span>
-          {t.expectedAmount}:{' '}
-          {new Intl.NumberFormat(locale, { style: 'currency', currency }).format(expected / 100)}
+          {t.expectedAmount}:{" "}
+          {new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency,
+          }).format(expected / 100)}
         </span>
       </div>
       <label>
@@ -54,14 +57,20 @@ export function BillPaymentForm({
     </form>
   );
 }
-export function CopyTagForm({ t, tag, save, busy, close }: Common & { tag: Tag }) {
+export function CopyTagForm({
+  t,
+  tag,
+  save,
+  busy,
+  close,
+}: Common & { tag: Tag }) {
   return (
     <form
       className="form"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await save(`tags/${tag.id}/copy`, 'POST', { kind: f.get('kind') });
+        await save(`tags/${tag.id}/copy`, "POST", { kind: f.get("kind") });
       }}
     >
       <p>
@@ -71,13 +80,15 @@ export function CopyTagForm({ t, tag, save, busy, close }: Common & { tag: Tag }
         {t.copyTo}
         <select
           name="kind"
-          defaultValue={(['income', 'expense', 'bill', 'investment'] as Kind[]).find(
-            (kind) => kind !== tag.kind,
-          )}
+          defaultValue={(
+            ["income", "expense", "bill", "investment"] as Kind[]
+          ).find((kind) => kind !== tag.kind)}
         >
-          {(['income', 'expense', 'bill', 'investment'] as Kind[])
+          {(["income", "expense", "bill", "investment"] as Kind[])
             .filter(
-              (kind) => kind !== tag.kind && (tag.type !== 'category' || kind !== 'investment'),
+              (kind) =>
+                kind !== tag.kind &&
+                (tag.type !== "category" || kind !== "investment"),
             )
             .map((kind) => (
               <option key={kind} value={kind}>
@@ -98,26 +109,30 @@ export function TagForm({
   save,
   busy,
   close,
-}: Common & { tag?: Tag; type: Tag['type']; initialKind?: Kind }) {
+}: Common & { tag?: Tag; type: Tag["type"]; initialKind?: Kind }) {
   return (
     <form
       className="form"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await save(tag ? `tags/${tag.id}` : 'tags', tag ? 'PUT' : 'POST', {
-          name: String(f.get('name')).trim(),
-          color: f.get('color'),
+        await save(tag ? `tags/${tag.id}` : "tags", tag ? "PUT" : "POST", {
+          name: String(f.get("name")).trim(),
+          color: f.get("color"),
           type,
-          kind: tag?.kind || f.get('kind'),
+          kind: tag?.kind || f.get("kind"),
         });
       }}
     >
       <label>
         {t.tagKind}
-        <select name="kind" defaultValue={tag?.kind || initialKind || 'expense'} disabled={!!tag}>
-          {(['income', 'expense', 'bill', 'investment'] as Kind[])
-            .filter((k) => type !== 'category' || k !== 'investment')
+        <select
+          name="kind"
+          defaultValue={tag?.kind || initialKind || "expense"}
+          disabled={!!tag}
+        >
+          {(["income", "expense", "bill", "investment"] as Kind[])
+            .filter((k) => type !== "category" || k !== "investment")
             .map((k) => (
               <option key={k} value={k}>
                 {t[k]}
@@ -128,11 +143,21 @@ export function TagForm({
       </label>
       <label>
         {t.name}
-        <input name="name" required maxLength={50} defaultValue={tag?.name} autoFocus />
+        <input
+          name="name"
+          required
+          maxLength={50}
+          defaultValue={tag?.name}
+          autoFocus
+        />
       </label>
       <label>
         {t.color}
-        <input name="color" type="color" defaultValue={tag?.color || '#c49b45'} />
+        <input
+          name="color"
+          type="color"
+          defaultValue={tag?.color || "#c49b45"}
+        />
       </label>
       <FormActions t={t} busy={busy} close={close} />
     </form>
@@ -155,9 +180,9 @@ export function SettingsForm({
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await save('profile', 'PUT', {
-          locale: f.get('locale'),
-          currency: f.get('currency'),
+        await save("profile", "PUT", {
+          locale: f.get("locale"),
+          currency: f.get("currency"),
         });
       }}
     >
@@ -186,10 +211,23 @@ export function SettingsForm({
     </form>
   );
 }
-function FormActions({ t, busy, close }: { t: Dictionary; busy: boolean; close: () => void }) {
+function FormActions({
+  t,
+  busy,
+  close,
+}: {
+  t: Dictionary;
+  busy: boolean;
+  close: () => void;
+}) {
   return (
     <div className="form-actions">
-      <button className="button secondary" type="button" onClick={close} disabled={busy}>
+      <button
+        className="button secondary"
+        type="button"
+        onClick={close}
+        disabled={busy}
+      >
         {t.cancel}
       </button>
       <button className="button primary" disabled={busy}>

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class MonthlyPlanning1788740000000 implements MigrationInterface {
   async up(q: QueryRunner): Promise<void> {
@@ -16,7 +16,7 @@ export class MonthlyPlanning1788740000000 implements MigrationInterface {
     // Preserve old classifications. A tag shared by multiple kinds becomes an
     // independent copy for each kind, and its existing links are remapped.
     const tags: { id: string; name: string; color: string; type: string }[] =
-      await q.query('SELECT * FROM tags');
+      await q.query("SELECT * FROM tags");
     for (const tag of tags) {
       const used: { kind: string }[] = await q.query(
         `SELECT DISTINCT kind FROM (
@@ -25,14 +25,17 @@ export class MonthlyPlanning1788740000000 implements MigrationInterface {
       ) kinds ORDER BY kind`,
         [tag.id],
       );
-      const kinds = used.length ? used.map((r) => r.kind) : ['expense'];
-      await q.query('UPDATE tags SET kind = $1 WHERE id = $2', [kinds[0], tag.id]);
+      const kinds = used.length ? used.map((r) => r.kind) : ["expense"];
+      await q.query("UPDATE tags SET kind = $1 WHERE id = $2", [
+        kinds[0],
+        tag.id,
+      ]);
       for (const kind of kinds.slice(1)) {
         const [copy] = await q.query(
-          'INSERT INTO tags (name,color,type,kind) VALUES ($1,$2,$3,$4) RETURNING id',
+          "INSERT INTO tags (name,color,type,kind) VALUES ($1,$2,$3,$4) RETURNING id",
           [tag.name, tag.color, tag.type, kind],
         );
-        for (const table of ['entries', 'recurrences']) {
+        for (const table of ["entries", "recurrences"]) {
           await q.query(
             `UPDATE ${table} SET "categoryId" = $1 WHERE "categoryId" = $2 AND kind = $3`,
             [copy.id, tag.id, kind],

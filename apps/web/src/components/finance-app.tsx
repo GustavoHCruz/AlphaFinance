@@ -1,16 +1,17 @@
-'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+"use client";
+import { api, localDate, localMonth } from "@/lib/api";
+import { dictionaries } from "@/lib/i18n";
+import type { Dashboard, Entry, Kind, Tag } from "@/lib/types";
 import {
   ArrowDownLeft,
-  ArrowUpRight,
   ArrowLeftRight,
-  Copy,
+  ArrowUpRight,
   Check,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  Copy,
   Download,
-  Ellipsis,
   LayoutDashboard,
   Menu,
   Pencil,
@@ -26,28 +27,38 @@ import {
   TrendingUp,
   Wallet,
   X,
-} from 'lucide-react';
-import { api, localDate, localMonth } from '@/lib/api';
-import { dictionaries } from '@/lib/i18n';
-import type { Dashboard, Entry, Kind, Tag } from '@/lib/types';
-import { CashFlow, SpendingChart } from './charts';
-import { EntryForm, SettingsForm, TagForm, BillPaymentForm, CopyTagForm } from './forms';
-import { Modal } from './modal';
-import { TagSorter } from './tag-sorter';
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CashFlow, SpendingChart } from "./charts";
+import {
+  BillPaymentForm,
+  CopyTagForm,
+  EntryForm,
+  SettingsForm,
+  TagForm,
+} from "./forms";
+import { Modal } from "./modal";
+import { TagSorter } from "./tag-sorter";
 
-type Page = 'overview' | 'transactions' | 'bills' | 'investment' | 'organize' | 'settings';
+type Page =
+  | "overview"
+  | "transactions"
+  | "bills"
+  | "investment"
+  | "organize"
+  | "settings";
 type Dialog =
-  | { type: 'entry'; entry?: Entry; kind?: Kind }
-  | { type: 'tag'; tag?: Tag; tagType: Tag['type']; kind?: Kind }
-  | { type: 'payment'; entry: Entry }
-  | { type: 'copy'; tag: Tag }
-  | { type: 'delete'; path: string; stop?: boolean };
+  | { type: "entry"; entry?: Entry; kind?: Kind }
+  | { type: "tag"; tag?: Tag; tagType: Tag["type"]; kind?: Kind }
+  | { type: "payment"; entry: Entry }
+  | { type: "copy"; tag: Tag }
+  | { type: "delete"; path: string; stop?: boolean };
 const nav = [
-  { id: 'overview', icon: LayoutDashboard },
-  { id: 'bills', icon: ReceiptText },
-  { id: 'investment', icon: TrendingUp },
-  { id: 'transactions', icon: ArrowLeftRight },
-  { id: 'organize', icon: TagIcon },
+  { id: "overview", icon: LayoutDashboard },
+  { id: "bills", icon: ReceiptText },
+  { id: "investment", icon: TrendingUp },
+  { id: "transactions", icon: ArrowLeftRight },
+  { id: "organize", icon: TagIcon },
 ] as const;
 const kindIcons = {
   income: ArrowDownLeft,
@@ -57,35 +68,35 @@ const kindIcons = {
 };
 
 export function FinanceApp() {
-  const [page, setPage] = useState<Page>('overview');
-  const [month, setMonth] = useState('');
+  const [page, setPage] = useState<Page>("overview");
+  const [month, setMonth] = useState("");
   const [data, setData] = useState<Dashboard | null>(null);
-  const [locale, setLocale] = useState<'pt-BR' | 'en-US'>('pt-BR');
+  const [locale, setLocale] = useState<"pt-BR" | "en-US">("pt-BR");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState("");
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [search, setSearch] = useState('');
-  const [kind, setKind] = useState('all');
-  const [category, setCategory] = useState('all');
-  const [label, setLabel] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [tagKind, setTagKind] = useState<Kind>('income');
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [label, setLabel] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [tagKind, setTagKind] = useState<Kind>("income");
   const request = useRef(0);
   const t = dictionaries[locale];
-  const creatingEntry = dialog?.type === 'entry' && !dialog.entry;
+  const creatingEntry = dialog?.type === "entry" && !dialog.entry;
   useEffect(() => {
     if (!creatingEntry) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = '';
+      event.returnValue = "";
     };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
   }, [creatingEntry]);
   function requestClose() {
     if (busy) return;
@@ -94,8 +105,12 @@ export function FinanceApp() {
   }
   function toggleBill(entry: Entry) {
     if (busy) return;
-    if (entry.done) void save(`entries/${entry.id}`, 'PATCH', { done: false, paidAmount: null });
-    else open({ type: 'payment', entry });
+    if (entry.done)
+      void save(`entries/${entry.id}`, "PATCH", {
+        done: false,
+        paidAmount: null,
+      });
+    else open({ type: "payment", entry });
   }
   useEffect(() => {
     setMonth(localMonth());
@@ -125,48 +140,57 @@ export function FinanceApp() {
   }, [locale]);
   useEffect(() => {
     if (!notice) return;
-    const timeout = setTimeout(() => setNotice(''), 4500);
+    const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
   }, [notice]);
   function open(d: Dialog) {
-    setFormError('');
+    setFormError("");
     setDialog(d);
   }
   function navigate(p: Page) {
     setPage(p);
-    setSearch('');
-    setKind('all');
-    setCategory('all');
-    setLabel('all');
-    setStatus('all');
+    setSearch("");
+    setKind("all");
+    setCategory("all");
+    setLabel("all");
+    setStatus("all");
     setMobileMenu(false);
   }
   function moveMonth(delta: number) {
     if (!month) return;
     const d = new Date(`${month}-01T12:00:00`);
     d.setMonth(d.getMonth() + delta);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (value >= '1900-01' && value <= '2199-12') setMonth(value);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (value >= "1900-01" && value <= "2199-12") setMonth(value);
   }
   async function save(path: string, method: string, body?: unknown) {
     if (busy) return false;
     setBusy(true);
-    setFormError('');
+    setFormError("");
     try {
       await api(path, method, body);
       setDialog(null);
       setDiscardOpen(false);
-      if (path.endsWith('/copy') && body) setTagKind((body as { kind: Kind }).kind);
-      setNotice(method === 'DELETE' ? t.deleted : path === 'profile' ? t.profileSaved : t.success);
+      if (path.endsWith("/copy") && body)
+        setTagKind((body as { kind: Kind }).kind);
+      setNotice(
+        method === "DELETE"
+          ? t.deleted
+          : path === "profile"
+            ? t.profileSaved
+            : t.success,
+      );
       await load();
       return true;
     } catch (error) {
       const message =
-        error instanceof Error && error.message === 'CATEGORY_IN_USE_BY_PERCENTAGE'
+        error instanceof Error &&
+        error.message === "CATEGORY_IN_USE_BY_PERCENTAGE"
           ? t.categoryInUse
-          : error instanceof Error && error.message === 'ACTUAL_INVESTMENT_REQUIRED'
+          : error instanceof Error &&
+              error.message === "ACTUAL_INVESTMENT_REQUIRED"
             ? t.actualInvestmentRequired
-            : error instanceof Error && error.message === 'PAID_AMOUNT_REQUIRED'
+            : error instanceof Error && error.message === "PAID_AMOUNT_REQUIRED"
               ? t.paidAmountRequired
               : t.error;
       setFormError(message);
@@ -178,39 +202,50 @@ export function FinanceApp() {
   }
   const money = (n: number) =>
     new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: data?.profile.currency || 'BRL',
+      style: "currency",
+      currency: data?.profile.currency || "BRL",
     }).format(n / 100);
   const entryName = (e: Entry) => (e.isCarryover ? t.carryover : e.description);
   const formatDate = (date: string) =>
-    new Date(`${date}T12:00:00`).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
+    new Date(`${date}T12:00:00`).toLocaleDateString(locale, {
+      day: "2-digit",
+      month: "short",
+    });
   const monthLabel = month
     ? new Date(`${month}-01T12:00:00`).toLocaleDateString(locale, {
-        month: 'long',
-        year: 'numeric',
+        month: "long",
+        year: "numeric",
       })
-    : '—';
+    : "—";
   const bills =
     data?.entries
-      .filter((e) => e.kind === 'bill')
-      .sort((a, b) => a.date.localeCompare(b.date) || a.description.localeCompare(b.description)) ||
-    [];
+      .filter((e) => e.kind === "bill")
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          a.description.localeCompare(b.description),
+      ) || [];
   const investments =
     data?.entries
-      .filter((e) => e.kind === 'investment')
-      .sort((a, b) => a.date.localeCompare(b.date) || a.description.localeCompare(b.description)) ||
-    [];
-  const trackingPage = page === 'bills' || page === 'investment';
-  const tracked = page === 'investment' ? investments : bills;
+      .filter((e) => e.kind === "investment")
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          a.description.localeCompare(b.description),
+      ) || [];
+  const trackingPage = page === "bills" || page === "investment";
+  const tracked = page === "investment" ? investments : bills;
   const pending = bills.filter((e) => !e.done);
   const filtered =
     (trackingPage ? tracked : data?.entries)?.filter(
       (e) =>
-        (kind === 'all' || e.kind === kind) &&
-        (category === 'all' || (e.categoryId || '') === category) &&
-        (label === 'all' || e.labelIds.includes(label)) &&
-        (status === 'all' || (status === 'done' ? e.done : !e.done)) &&
-        entryName(e).toLocaleLowerCase(locale).includes(search.toLocaleLowerCase(locale)),
+        (kind === "all" || e.kind === kind) &&
+        (category === "all" || (e.categoryId || "") === category) &&
+        (label === "all" || e.labelIds.includes(label)) &&
+        (status === "all" || (status === "done" ? e.done : !e.done)) &&
+        entryName(e)
+          .toLocaleLowerCase(locale)
+          .includes(search.toLocaleLowerCase(locale)),
     ) || [];
   function exportCsv() {
     if (!filtered.length) {
@@ -235,31 +270,37 @@ export function FinanceApp() {
         t[e.kind],
         (e.amount / 100).toFixed(2),
         e.date,
-        data?.tags.find((tag) => tag.id === e.categoryId)?.name || '',
-        e.labelIds.map((id) => data?.tags.find((tag) => tag.id === id)?.name || '').join(', '),
-        t[e.method as 'pix'],
-        e.kind === 'bill'
+        data?.tags.find((tag) => tag.id === e.categoryId)?.name || "",
+        e.labelIds
+          .map((id) => data?.tags.find((tag) => tag.id === id)?.name || "")
+          .join(", "),
+        t[e.method as "pix"],
+        e.kind === "bill"
           ? e.done
             ? t.paid
             : t.pending
           : e.estimated
             ? t.estimated
-            : e.kind === 'investment'
+            : e.kind === "investment"
               ? t.confirmed
               : e.isCarryover
                 ? t.automatic
-                : '',
-        e.expectedAmount == null ? '' : (e.expectedAmount / 100).toFixed(2),
-        e.paidAmount == null ? '' : (e.paidAmount / 100).toFixed(2),
+                : "",
+        e.expectedAmount == null ? "" : (e.expectedAmount / 100).toFixed(2),
+        e.paidAmount == null ? "" : (e.paidAmount / 100).toFixed(2),
       ]),
     ];
-    const escape = (s: string) => `"${(/^[=+@\-\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
+    const escape = (s: string) =>
+      `"${(/^[=+@\-\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
     const url = URL.createObjectURL(
-      new Blob(['\uFEFF' + rows.map((r) => r.map(escape).join(';')).join('\r\n')], {
-        type: 'text/csv;charset=utf-8',
-      }),
+      new Blob(
+        ["\uFEFF" + rows.map((r) => r.map(escape).join(";")).join("\r\n")],
+        {
+          type: "text/csv;charset=utf-8",
+        },
+      ),
     );
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `alphafinance-${month}.csv`;
     a.click();
@@ -275,9 +316,12 @@ export function FinanceApp() {
         <div className="tracking-scroll">
           <div className="tracking-list">
             {rows.map((e) => (
-              <div className={`tracking-row ${e.done ? 'is-complete' : ''}`} key={e.id}>
+              <div
+                className={`tracking-row ${e.done ? "is-complete" : ""}`}
+                key={e.id}
+              >
                 <button
-                  className={`bill-check ${e.done ? 'checked' : ''}`}
+                  className={`bill-check ${e.done ? "checked" : ""}`}
                   aria-label={`${e.done ? t.pending : t.done}: ${e.description}`}
                   aria-pressed={e.done}
                   disabled={busy}
@@ -293,7 +337,13 @@ export function FinanceApp() {
                   {e.done ? (investment ? t.saved : t.paid) : t.pending}
                 </span>
                 <span className="tracking-value">
-                  <small>{e.done ? (investment ? t.saved : t.paidShort) : t.expectedShort}</small>
+                  <small>
+                    {e.done
+                      ? investment
+                        ? t.saved
+                        : t.paidShort
+                      : t.expectedShort}
+                  </small>
                   <strong>{money(e.amount)}</strong>
                 </span>
               </div>
@@ -308,7 +358,9 @@ export function FinanceApp() {
         <div className="panel-footer">
           <span>{t.pending}</span>
           <strong>
-            {money(rows.filter((e) => !e.done).reduce((sum, e) => sum + e.amount, 0))}
+            {money(
+              rows.filter((e) => !e.done).reduce((sum, e) => sum + e.amount, 0),
+            )}
           </strong>
         </div>
       </section>
@@ -325,8 +377,13 @@ export function FinanceApp() {
             className="button secondary"
             onClick={() =>
               open({
-                type: 'entry',
-                kind: page === 'bills' ? 'bill' : page === 'investment' ? 'investment' : undefined,
+                type: "entry",
+                kind:
+                  page === "bills"
+                    ? "bill"
+                    : page === "investment"
+                      ? "investment"
+                      : undefined,
               })
             }
           >
@@ -341,10 +398,10 @@ export function FinanceApp() {
           <thead>
             <tr>
               <th>{t.description}</th>
-              {page !== 'investment' && <th>{t.category}</th>}
+              {page !== "investment" && <th>{t.category}</th>}
               {!compact && <th>{t.labels}</th>}
               <th>{t.date}</th>
-              {!compact && page !== 'investment' && <th>{t.method}</th>}
+              {!compact && page !== "investment" && <th>{t.method}</th>}
               <th className="align-right">{t.amount}</th>
               <th>
                 <span className="sr-only">{t.actions}</span>
@@ -359,9 +416,9 @@ export function FinanceApp() {
                 <tr key={e.id}>
                   <td>
                     <div className="transaction-name">
-                      {e.kind === 'bill' || e.kind === 'investment' ? (
+                      {e.kind === "bill" || e.kind === "investment" ? (
                         <button
-                          className={`bill-check ${e.done ? 'checked' : ''}`}
+                          className={`bill-check ${e.done ? "checked" : ""}`}
                           disabled={busy}
                           onClick={() => toggleBill(e)}
                           aria-label={`${e.done ? t.pending : t.done}: ${e.description}`}
@@ -377,13 +434,19 @@ export function FinanceApp() {
                       <div>
                         <strong>{entryName(e)}</strong>
                         <small>
-                          {e.kind === 'bill' || e.kind === 'investment' ? (
-                            <span className={!e.done && e.date < localDate() ? 'danger-text' : ''}>
+                          {e.kind === "bill" || e.kind === "investment" ? (
+                            <span
+                              className={
+                                !e.done && e.date < localDate()
+                                  ? "danger-text"
+                                  : ""
+                              }
+                            >
                               {e.done
-                                ? e.kind === 'investment'
+                                ? e.kind === "investment"
                                   ? t.saved
                                   : t.paid
-                                : e.kind === 'bill' && e.date < localDate()
+                                : e.kind === "bill" && e.date < localDate()
                                   ? t.overdue
                                   : t.pending}
                             </span>
@@ -394,30 +457,41 @@ export function FinanceApp() {
                           ) : (
                             t[e.kind]
                           )}
-                          {e.recurrenceId && <Repeat2 size={12} aria-label={t.recurring} />}
+                          {e.recurrenceId && (
+                            <Repeat2 size={12} aria-label={t.recurring} />
+                          )}
                         </small>
-                        {e.kind === 'bill' && (
+                        {e.kind === "bill" && (
                           <small>
-                            {t.expectedAmount}: {money(e.expectedAmount ?? e.amount)}
+                            {t.expectedAmount}:{" "}
+                            {money(e.expectedAmount ?? e.amount)}
                           </small>
                         )}
                         {e.percentageBps != null && (
                           <small className="percentage-caption">
-                            {e.percentageBps / 100}% ·{' '}
-                            {data?.tags.find((tag) => tag.id === e.incomeCategoryId)?.name ||
-                              t.allIncome}
+                            {e.percentageBps / 100}% ·{" "}
+                            {data?.tags.find(
+                              (tag) => tag.id === e.incomeCategoryId,
+                            )?.name || t.allIncome}
                           </small>
                         )}
                       </div>
                     </div>
                   </td>
-                  {page !== 'investment' && (
+                  {page !== "investment" && (
                     <td>
                       <span
                         className="category-chip"
-                        style={tag ? { color: tag.color, background: `${tag.color}14` } : {}}
+                        style={
+                          tag
+                            ? { color: tag.color, background: `${tag.color}14` }
+                            : {}
+                        }
                       >
-                        <i className="dot" style={{ background: tag?.color || '#a4a69c' }} />
+                        <i
+                          className="dot"
+                          style={{ background: tag?.color || "#a4a69c" }}
+                        />
                         {tag?.name || t.uncategorized}
                       </span>
                     </td>
@@ -429,7 +503,11 @@ export function FinanceApp() {
                           const tag = data?.tags.find((t) => t.id === id);
                           return (
                             tag && (
-                              <span className="tiny-label" key={id} style={{ color: tag.color }}>
+                              <span
+                                className="tiny-label"
+                                key={id}
+                                style={{ color: tag.color }}
+                              >
                                 {tag.name}
                               </span>
                             )
@@ -440,19 +518,21 @@ export function FinanceApp() {
                     </td>
                   )}
                   <td className="nowrap muted">{formatDate(e.date)}</td>
-                  {!compact && page !== 'investment' && (
+                  {!compact && page !== "investment" && (
                     <td className="muted">
-                      {e.isCarryover || e.kind === 'investment' ? '—' : t[e.method as 'pix']}
+                      {e.isCarryover || e.kind === "investment"
+                        ? "—"
+                        : t[e.method as "pix"]}
                     </td>
                   )}
                   <td
-                    className={`align-right nowrap amount ${e.kind === 'income' ? 'positive' : ''}`}
+                    className={`align-right nowrap amount ${e.kind === "income" ? "positive" : ""}`}
                   >
-                    {e.kind === 'income' && e.amount >= 0
-                      ? '+'
-                      : e.kind !== 'income' && e.amount > 0
-                        ? '−'
-                        : ''}
+                    {e.kind === "income" && e.amount >= 0
+                      ? "+"
+                      : e.kind !== "income" && e.amount > 0
+                        ? "−"
+                        : ""}
                     {money(e.amount)}
                   </td>
                   <td>
@@ -465,14 +545,16 @@ export function FinanceApp() {
                         <button
                           className="icon-button"
                           aria-label={`${t.edit}: ${e.description}`}
-                          onClick={() => open({ type: 'entry', entry: e })}
+                          onClick={() => open({ type: "entry", entry: e })}
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           className="icon-button delete-button"
                           aria-label={`${t.remove}: ${e.description}`}
-                          onClick={() => open({ type: 'delete', path: `entries/${e.id}` })}
+                          onClick={() =>
+                            open({ type: "delete", path: `entries/${e.id}` })
+                          }
                         >
                           <Trash2 size={14} />
                         </button>
@@ -496,13 +578,13 @@ export function FinanceApp() {
           onClick={() => setMobileMenu(false)}
         />
       )}
-      <aside className={`sidebar ${mobileMenu ? 'open' : ''}`}>
+      <aside className={`sidebar ${mobileMenu ? "open" : ""}`}>
         <a
           className="brand"
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            navigate('overview');
+            navigate("overview");
           }}
         >
           <img src="/logo.svg" alt="" />
@@ -515,12 +597,14 @@ export function FinanceApp() {
           {nav.map((n) => (
             <button
               key={n.id}
-              className={`nav-item ${page === n.id ? 'active' : ''}`}
+              className={`nav-item ${page === n.id ? "active" : ""}`}
               onClick={() => navigate(n.id)}
             >
               <n.icon size={19} />
               <span>{t[n.id]}</span>
-              {n.id === 'bills' && pending.length > 0 && <b>{pending.length}</b>}
+              {n.id === "bills" && pending.length > 0 && (
+                <b>{pending.length}</b>
+              )}
             </button>
           ))}
         </nav>
@@ -531,8 +615,8 @@ export function FinanceApp() {
             <div className="decorative-line" />
           </div>
           <button
-            className={`nav-item ${page === 'settings' ? 'active' : ''}`}
-            onClick={() => navigate('settings')}
+            className={`nav-item ${page === "settings" ? "active" : ""}`}
+            onClick={() => navigate("settings")}
           >
             <Settings2 size={19} />
             {t.settings}
@@ -555,25 +639,25 @@ export function FinanceApp() {
           <div className="page-heading">
             <div>
               <div className="eyebrow">
-                {page === 'overview' ? t.financialOverview : 'ALPHAFINANCE'}
+                {page === "overview" ? t.financialOverview : "ALPHAFINANCE"}
               </div>
-              <h1>{page === 'overview' ? t.greeting : t[page]}</h1>
+              <h1>{page === "overview" ? t.greeting : t[page]}</h1>
               <p>
-                {page === 'overview'
+                {page === "overview"
                   ? t.subtitle
-                  : page === 'investment'
+                  : page === "investment"
                     ? t.investmentSubtitle
-                    : page === 'bills'
+                    : page === "bills"
                       ? t.billSubtitle
-                      : page === 'transactions'
+                      : page === "transactions"
                         ? t.transactionsSubtitle
-                        : page === 'organize'
+                        : page === "organize"
                           ? t.organizeSubtitle
                           : t.profileSubtitle}
               </p>
             </div>
             <div className="heading-actions">
-              {page !== 'organize' && page !== 'settings' && (
+              {page !== "organize" && page !== "settings" && (
                 <div className="month-picker">
                   <button aria-label={t.previous} onClick={() => moveMonth(-1)}>
                     <ChevronLeft size={16} />
@@ -589,8 +673,8 @@ export function FinanceApp() {
                       onChange={(e) => {
                         if (
                           /^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value) &&
-                          e.target.value >= '1900-01' &&
-                          e.target.value <= '2199-12'
+                          e.target.value >= "1900-01" &&
+                          e.target.value <= "2199-12"
                         )
                           setMonth(e.target.value);
                       }}
@@ -601,37 +685,37 @@ export function FinanceApp() {
                   </button>
                 </div>
               )}
-              {page !== 'organize' && page !== 'settings' && (
+              {page !== "organize" && page !== "settings" && (
                 <div className="create-actions">
-                  {(page === 'overview' || page === 'transactions') && (
+                  {(page === "overview" || page === "transactions") && (
                     <button
                       className="button income-action"
                       disabled={!data || loading}
-                      onClick={() => open({ type: 'entry', kind: 'income' })}
+                      onClick={() => open({ type: "entry", kind: "income" })}
                     >
                       <ArrowDownLeft size={17} />
                       {t.newIncome}
                     </button>
                   )}
                   <button
-                    className={`button ${page === 'overview' || page === 'transactions' ? 'expense-action' : 'primary'}`}
+                    className={`button ${page === "overview" || page === "transactions" ? "expense-action" : "primary"}`}
                     disabled={!data || loading}
                     onClick={() =>
                       open({
-                        type: 'entry',
+                        type: "entry",
                         kind:
-                          page === 'bills'
-                            ? 'bill'
-                            : page === 'investment'
-                              ? 'investment'
-                              : 'expense',
+                          page === "bills"
+                            ? "bill"
+                            : page === "investment"
+                              ? "investment"
+                              : "expense",
                       })
                     }
                   >
                     <Plus size={17} />
-                    {page === 'bills'
+                    {page === "bills"
                       ? t.newBill
-                      : page === 'investment'
+                      : page === "investment"
                         ? t.newInvestment
                         : t.newExpense}
                   </button>
@@ -654,7 +738,7 @@ export function FinanceApp() {
             </div>
           ) : (
             <>
-              {(page === 'overview' || page === 'transactions') && (
+              {(page === "overview" || page === "transactions") && (
                 <section className="carryover-panel">
                   <label className="checkbox-line">
                     <input
@@ -662,7 +746,9 @@ export function FinanceApp() {
                       checked={data.carryoverEnabled}
                       disabled={busy}
                       onChange={(e) =>
-                        void save(`carryover?month=${month}`, 'PUT', { enabled: e.target.checked })
+                        void save(`carryover?month=${month}`, "PUT", {
+                          enabled: e.target.checked,
+                        })
                       }
                     />
                     <span>
@@ -672,13 +758,17 @@ export function FinanceApp() {
                   </label>
                   <div>
                     <small>{t.carryover}</small>
-                    <strong className={data.previousBalance < 0 ? 'danger-text' : 'positive'}>
+                    <strong
+                      className={
+                        data.previousBalance < 0 ? "danger-text" : "positive"
+                      }
+                    >
                       {money(data.previousBalance)}
                     </strong>
                   </div>
                 </section>
               )}
-              {page === 'overview' && (
+              {page === "overview" && (
                 <>
                   <div className="stats-grid">
                     <article className="stat-card balance-card">
@@ -696,21 +786,21 @@ export function FinanceApp() {
                         value: data.summary.income,
                         hint: t.incomeHint,
                         icon: ArrowDownLeft,
-                        className: 'income',
+                        className: "income",
                       },
                       {
                         label: t.totalOut,
                         value: data.summary.expenses + data.summary.bills,
                         hint: t.expenseHint,
                         icon: ArrowUpRight,
-                        className: 'expense',
+                        className: "expense",
                       },
                       {
                         label: t.investment,
                         value: data.summary.invested,
                         hint: t.investmentBudgetHint,
                         icon: TrendingUp,
-                        className: 'investment',
+                        className: "investment",
                       },
                     ].map((s) => (
                       <article className="stat-card" key={s.label}>
@@ -736,7 +826,7 @@ export function FinanceApp() {
                       </div>
                       <button
                         className="text-button"
-                        onClick={() => open({ type: 'entry', kind: 'income' })}
+                        onClick={() => open({ type: "entry", kind: "income" })}
                       >
                         {t.newIncome}
                         <ArrowUpRight size={16} />
@@ -745,7 +835,12 @@ export function FinanceApp() {
                   )}
                   <div className="charts-grid">
                     <CashFlow data={data} t={t} locale={locale} money={money} />
-                    <SpendingChart data={data} t={t} locale={locale} money={money} />
+                    <SpendingChart
+                      data={data}
+                      t={t}
+                      locale={locale}
+                      money={money}
+                    />
                   </div>
                   <div className="overview-lists">
                     <div className="tracking-grid">
@@ -755,7 +850,10 @@ export function FinanceApp() {
                     <section className="panel">
                       <div className="panel-heading">
                         <h2>{t.recent}</h2>
-                        <button className="text-button" onClick={() => navigate('transactions')}>
+                        <button
+                          className="text-button"
+                          onClick={() => navigate("transactions")}
+                        >
                           {t.viewAll}
                           <ArrowUpRight size={15} />
                         </button>
@@ -765,7 +863,7 @@ export function FinanceApp() {
                   </div>
                 </>
               )}
-              {(page === 'transactions' || trackingPage) && (
+              {(page === "transactions" || trackingPage) && (
                 <>
                   {trackingPage && (
                     <div className="bill-summary">
@@ -773,15 +871,22 @@ export function FinanceApp() {
                         <span>{t.plan}</span>
                         <strong>
                           {money(
-                            tracked.reduce((sum, e) => sum + (e.expectedAmount ?? e.amount), 0),
+                            tracked.reduce(
+                              (sum, e) => sum + (e.expectedAmount ?? e.amount),
+                              0,
+                            ),
                           )}
                         </strong>
                       </div>
                       <div>
-                        <span>{page === 'investment' ? t.savedAmount : t.paid}</span>
+                        <span>
+                          {page === "investment" ? t.savedAmount : t.paid}
+                        </span>
                         <strong className="positive">
                           {money(
-                            tracked.filter((e) => e.done).reduce((sum, e) => sum + e.amount, 0),
+                            tracked
+                              .filter((e) => e.done)
+                              .reduce((sum, e) => sum + e.amount, 0),
                           )}
                         </strong>
                       </div>
@@ -789,21 +894,26 @@ export function FinanceApp() {
                         <span>{t.pending}</span>
                         <strong>
                           {money(
-                            tracked.filter((e) => !e.done).reduce((sum, e) => sum + e.amount, 0),
+                            tracked
+                              .filter((e) => !e.done)
+                              .reduce((sum, e) => sum + e.amount, 0),
                           )}
                         </strong>
                       </div>
                       <div className="bill-completion">
                         <span>
-                          {tracked.filter((e) => e.done).length} / {tracked.length} {t.completed}
+                          {tracked.filter((e) => e.done).length} /{" "}
+                          {tracked.length} {t.completed}
                         </span>
                         <div className="progress-track">
                           <i
                             style={{
                               width: tracked.length
-                                ? (tracked.filter((e) => e.done).length / tracked.length) * 100 +
-                                  '%'
-                                : '0%',
+                                ? (tracked.filter((e) => e.done).length /
+                                    tracked.length) *
+                                    100 +
+                                  "%"
+                                : "0%",
                             }}
                           />
                         </div>
@@ -821,21 +931,28 @@ export function FinanceApp() {
                           onChange={(e) => setSearch(e.target.value)}
                         />
                       </div>
-                      {page === 'transactions' && (
+                      {page === "transactions" && (
                         <select
                           aria-label={t.type}
                           value={kind}
                           onChange={(e) => setKind(e.target.value)}
                         >
                           <option value="all">{t.all}</option>
-                          {(['income', 'expense', 'bill', 'investment'] as Kind[]).map((k) => (
+                          {(
+                            [
+                              "income",
+                              "expense",
+                              "bill",
+                              "investment",
+                            ] as Kind[]
+                          ).map((k) => (
                             <option key={k} value={k}>
                               {t[k]}
                             </option>
                           ))}
                         </select>
                       )}
-                      {page !== 'investment' && (
+                      {page !== "investment" && (
                         <select
                           aria-label={t.category}
                           value={category}
@@ -844,7 +961,7 @@ export function FinanceApp() {
                           <option value="all">{t.allCategories}</option>
                           <option value="">{t.uncategorized}</option>
                           {data.tags
-                            .filter((tag) => tag.type === 'category')
+                            .filter((tag) => tag.type === "category")
                             .map((tag) => (
                               <option value={tag.id} key={tag.id}>
                                 {tag.name}
@@ -859,7 +976,7 @@ export function FinanceApp() {
                       >
                         <option value="all">{t.allLabels}</option>
                         {data.tags
-                          .filter((tag) => tag.type === 'label')
+                          .filter((tag) => tag.type === "label")
                           .map((tag) => (
                             <option key={tag.id} value={tag.id}>
                               {tag.name}
@@ -877,7 +994,10 @@ export function FinanceApp() {
                           <option value="pending">{t.pending}</option>
                         </select>
                       )}
-                      <button className="button secondary export-button" onClick={exportCsv}>
+                      <button
+                        className="button secondary export-button"
+                        onClick={exportCsv}
+                      >
                         <Download size={16} />
                         {t.export}
                       </button>
@@ -890,7 +1010,8 @@ export function FinanceApp() {
                       <strong>
                         {money(
                           filtered.reduce(
-                            (s, e) => s + (e.kind === 'income' ? e.amount : -e.amount),
+                            (s, e) =>
+                              s + (e.kind === "income" ? e.amount : -e.amount),
                             0,
                           ),
                         )}
@@ -913,7 +1034,8 @@ export function FinanceApp() {
                           r.startMonth <= month &&
                           (!r.endMonth || r.endMonth >= month) &&
                           (!trackingPage ||
-                            r.kind === (page === 'investment' ? 'investment' : 'bill')),
+                            r.kind ===
+                              (page === "investment" ? "investment" : "bill")),
                       )
                       .map((r) => (
                         <div className="recurring-row" key={r.id}>
@@ -931,8 +1053,9 @@ export function FinanceApp() {
                               <>
                                 {r.percentageBps / 100}%
                                 <small>
-                                  {data.tags.find((tag) => tag.id === r.incomeCategoryId)?.name ||
-                                    t.allIncome}
+                                  {data.tags.find(
+                                    (tag) => tag.id === r.incomeCategoryId,
+                                  )?.name || t.allIncome}
                                 </small>
                               </>
                             ) : (
@@ -943,7 +1066,7 @@ export function FinanceApp() {
                             className="button secondary"
                             onClick={() =>
                               open({
-                                type: 'delete',
+                                type: "delete",
                                 path: `recurrences/${r.id}?month=${month}`,
                                 stop: true,
                               })
@@ -958,19 +1081,26 @@ export function FinanceApp() {
                         r.startMonth <= month &&
                         (!r.endMonth || r.endMonth >= month) &&
                         (!trackingPage ||
-                          r.kind === (page === 'investment' ? 'investment' : 'bill')),
+                          r.kind ===
+                            (page === "investment" ? "investment" : "bill")),
                     ) && <p className="empty-inline">{t.noRecurrences}</p>}
                   </section>
                 </>
               )}
-              {page === 'organize' && (
+              {page === "organize" && (
                 <div>
-                  <div className="tag-kind-tabs" role="group" aria-label={t.tagKind}>
-                    {(['income', 'expense', 'bill', 'investment'] as Kind[]).map((k) => (
+                  <div
+                    className="tag-kind-tabs"
+                    role="group"
+                    aria-label={t.tagKind}
+                  >
+                    {(
+                      ["income", "expense", "bill", "investment"] as Kind[]
+                    ).map((k) => (
                       <button
                         type="button"
                         key={k}
-                        className={`kind-choice kind-${k} ${tagKind === k ? 'selected' : ''}`}
+                        className={`kind-choice kind-${k} ${tagKind === k ? "selected" : ""}`}
                         aria-pressed={tagKind === k}
                         onClick={() => setTagKind(k)}
                       >
@@ -980,28 +1110,43 @@ export function FinanceApp() {
                   </div>
                   <p className="order-hint">{t.orderHint}</p>
                   <div className="organize-grid">
-                    {(['category', 'label'] as const)
-                      .filter((type) => tagKind !== 'investment' || type === 'label')
+                    {(["category", "label"] as const)
+                      .filter(
+                        (type) => tagKind !== "investment" || type === "label",
+                      )
                       .map((type) => (
                         <section className="panel" key={type}>
                           <div className="panel-heading">
-                            <h2>{type === 'category' ? t.categories : t.labels}</h2>
+                            <h2>
+                              {type === "category" ? t.categories : t.labels}
+                            </h2>
                             <button
                               className="button secondary"
-                              onClick={() => open({ type: 'tag', tagType: type, kind: tagKind })}
+                              onClick={() =>
+                                open({
+                                  type: "tag",
+                                  tagType: type,
+                                  kind: tagKind,
+                                })
+                              }
                             >
                               <Plus size={15} />
-                              {type === 'category' ? t.newCategory : t.newLabel}
+                              {type === "category" ? t.newCategory : t.newLabel}
                             </button>
                           </div>
                           <TagSorter
                             tags={data.tags.filter(
-                              (tag) => tag.type === type && tag.kind === tagKind,
+                              (tag) =>
+                                tag.type === type && tag.kind === tagKind,
                             )}
                             busy={busy}
                             t={t}
                             reorder={(ids) =>
-                              void save('tags/order', 'PUT', { type, kind: tagKind, ids })
+                              void save("tags/order", "PUT", {
+                                type,
+                                kind: tagKind,
+                                ids,
+                              })
                             }
                             actions={(tag) => (
                               <>
@@ -1009,22 +1154,29 @@ export function FinanceApp() {
                                   className="icon-button"
                                   disabled={busy}
                                   title={t.copyTag}
-                                  aria-label={t.copyTag + ': ' + tag.name}
-                                  onClick={() => open({ type: 'copy', tag })}
+                                  aria-label={t.copyTag + ": " + tag.name}
+                                  onClick={() => open({ type: "copy", tag })}
                                 >
                                   <Copy size={15} />
                                 </button>
                                 <button
                                   className="icon-button"
-                                  aria-label={t.edit + ': ' + tag.name}
-                                  onClick={() => open({ type: 'tag', tagType: type, tag })}
+                                  aria-label={t.edit + ": " + tag.name}
+                                  onClick={() =>
+                                    open({ type: "tag", tagType: type, tag })
+                                  }
                                 >
                                   <Pencil size={15} />
                                 </button>
                                 <button
                                   className="icon-button delete-button"
-                                  aria-label={t.remove + ': ' + tag.name}
-                                  onClick={() => open({ type: 'delete', path: 'tags/' + tag.id })}
+                                  aria-label={t.remove + ": " + tag.name}
+                                  onClick={() =>
+                                    open({
+                                      type: "delete",
+                                      path: "tags/" + tag.id,
+                                    })
+                                  }
                                 >
                                   <Trash2 size={15} />
                                 </button>
@@ -1036,7 +1188,7 @@ export function FinanceApp() {
                   </div>
                 </div>
               )}
-              {page === 'settings' && (
+              {page === "settings" && (
                 <SettingsForm
                   key={`${data.profile.locale}-${data.profile.currency}`}
                   profile={data.profile}
@@ -1061,7 +1213,11 @@ export function FinanceApp() {
       {notice && (
         <div className="toast" role="status">
           <span>{notice}</span>
-          <button className="icon-button" onClick={() => setNotice('')} aria-label={t.close}>
+          <button
+            className="icon-button"
+            onClick={() => setNotice("")}
+            aria-label={t.close}
+          >
             <X size={16} />
           </button>
         </div>
@@ -1069,29 +1225,29 @@ export function FinanceApp() {
       {dialog && data && (
         <Modal
           title={
-            dialog.type === 'entry'
+            dialog.type === "entry"
               ? dialog.entry
                 ? t.edit
-                : dialog.kind === 'income'
+                : dialog.kind === "income"
                   ? t.newIncome
-                  : dialog.kind === 'expense'
+                  : dialog.kind === "expense"
                     ? t.newExpense
-                    : dialog.kind === 'bill'
+                    : dialog.kind === "bill"
                       ? t.newBill
-                      : dialog.kind === 'investment'
+                      : dialog.kind === "investment"
                         ? t.newInvestment
                         : t.newEntry
-              : dialog.type === 'tag'
+              : dialog.type === "tag"
                 ? dialog.tag
                   ? t.edit
-                  : dialog.tagType === 'category'
+                  : dialog.tagType === "category"
                     ? t.newCategory
                     : t.newLabel
-                : dialog.type === 'payment'
-                  ? dialog.entry.kind === 'investment'
+                : dialog.type === "payment"
+                  ? dialog.entry.kind === "investment"
                     ? t.completeInvestment
                     : t.completeBill
-                  : dialog.type === 'copy'
+                  : dialog.type === "copy"
                     ? t.copyTag
                     : dialog.stop
                       ? t.confirmStop
@@ -1105,7 +1261,7 @@ export function FinanceApp() {
               {formError}
             </div>
           )}
-          {dialog.type === 'entry' && (
+          {dialog.type === "entry" && (
             <EntryForm
               data={data}
               t={t}
@@ -1118,7 +1274,7 @@ export function FinanceApp() {
               close={requestClose}
             />
           )}
-          {dialog.type === 'tag' && (
+          {dialog.type === "tag" && (
             <TagForm
               t={t}
               tag={dialog.tag}
@@ -1129,7 +1285,7 @@ export function FinanceApp() {
               close={() => setDialog(null)}
             />
           )}
-          {dialog.type === 'payment' && (
+          {dialog.type === "payment" && (
             <BillPaymentForm
               t={t}
               entry={dialog.entry}
@@ -1140,10 +1296,16 @@ export function FinanceApp() {
               close={requestClose}
             />
           )}
-          {dialog.type === 'copy' && (
-            <CopyTagForm t={t} tag={dialog.tag} save={save} busy={busy} close={requestClose} />
+          {dialog.type === "copy" && (
+            <CopyTagForm
+              t={t}
+              tag={dialog.tag}
+              save={save}
+              busy={busy}
+              close={requestClose}
+            />
           )}
-          {dialog.type === 'delete' && (
+          {dialog.type === "delete" && (
             <div className="form">
               <p>{dialog.stop ? t.confirmStopHint : t.confirmDeleteHint}</p>
               <div className="form-actions">
@@ -1157,7 +1319,7 @@ export function FinanceApp() {
                 <button
                   className="button danger"
                   disabled={busy}
-                  onClick={() => void save(dialog.path, 'DELETE')}
+                  onClick={() => void save(dialog.path, "DELETE")}
                 >
                   {busy ? t.saving : dialog.stop ? t.stop : t.remove}
                 </button>
@@ -1167,11 +1329,19 @@ export function FinanceApp() {
         </Modal>
       )}
       {discardOpen && (
-        <Modal title={t.discardTitle} close={() => setDiscardOpen(false)} closeLabel={t.close}>
+        <Modal
+          title={t.discardTitle}
+          close={() => setDiscardOpen(false)}
+          closeLabel={t.close}
+        >
           <div className="form">
             <p>{t.discardHint}</p>
             <div className="form-actions">
-              <button className="button secondary" autoFocus onClick={() => setDiscardOpen(false)}>
+              <button
+                className="button secondary"
+                autoFocus
+                onClick={() => setDiscardOpen(false)}
+              >
                 {t.keepEditing}
               </button>
               <button

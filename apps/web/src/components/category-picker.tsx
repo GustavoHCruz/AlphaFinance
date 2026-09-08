@@ -1,5 +1,5 @@
-'use client';
-import type { Tag } from '@/lib/types';
+"use client";
+import type { Tag } from "@/lib/types";
 
 export function CategoryPicker({
   title,
@@ -20,9 +20,9 @@ export function CategoryPicker({
       <div className="label-picker" role="group" aria-label={title}>
         <button
           type="button"
-          className={`chip ${!value ? 'chosen' : ''}`}
+          className={`chip ${!value ? "chosen" : ""}`}
           aria-pressed={!value}
-          onClick={() => onChange('')}
+          onClick={() => onChange("")}
         >
           {noneLabel}
         </button>
@@ -30,10 +30,10 @@ export function CategoryPicker({
           <button
             type="button"
             key={tag.id}
-            className={`chip ${value === tag.id ? 'chosen' : ''}`}
+            className={`chip ${value === tag.id ? "chosen" : ""}`}
             aria-pressed={value === tag.id}
             style={{ borderColor: value === tag.id ? tag.color : undefined }}
-            onClick={() => onChange(value === tag.id ? '' : tag.id)}
+            onClick={() => onChange(value === tag.id ? "" : tag.id)}
           >
             <i className="dot" style={{ background: tag.color }} />
             {tag.name}

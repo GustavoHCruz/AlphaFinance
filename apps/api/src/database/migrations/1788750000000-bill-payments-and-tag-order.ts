@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class BillPaymentsAndTagOrder1788750000000 implements MigrationInterface {
   async up(q: QueryRunner): Promise<void> {

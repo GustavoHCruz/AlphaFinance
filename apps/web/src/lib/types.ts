@@ -1,9 +1,9 @@
-export type Kind = 'income' | 'expense' | 'bill' | 'investment';
+export type Kind = "income" | "expense" | "bill" | "investment";
 export type Tag = {
   id: string;
   name: string;
   color: string;
-  type: 'category' | 'label';
+  type: "category" | "label";
   kind: Kind;
   position: number;
 };
@@ -28,15 +28,15 @@ export type Entry = {
 };
 export type Recurrence = Omit<
   Entry,
-  'date' | 'month' | 'done' | 'recurrenceId' | 'expectedAmount' | 'paidAmount'
+  "date" | "month" | "done" | "recurrenceId" | "expectedAmount" | "paidAmount"
 > & {
   startMonth: string;
   endMonth: string | null;
   day: number;
 };
 export type Profile = {
-  locale: 'pt-BR' | 'en-US';
-  currency: 'BRL' | 'USD' | 'EUR';
+  locale: "pt-BR" | "en-US";
+  currency: "BRL" | "USD" | "EUR";
 };
 export type Summary = {
   income: number;
