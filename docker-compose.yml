@@ -27,8 +27,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphafinance}
       POSTGRES_DB: ${POSTGRES_DB:-alphafinance}
       API_PORT: 8000
-      API_URL: ${API_URL:-http://localhost:8000}
-      WEB_URL: ${WEB_URL:-http://localhost:3000}
     ports:
       - '127.0.0.1:${API_PORT:-8000}:8000'
     depends_on:

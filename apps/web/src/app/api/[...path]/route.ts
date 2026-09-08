@@ -6,9 +6,7 @@ async function proxy(
 ) {
   const { path } = await context.params;
   const base = (
-    process.env.API_INTERNAL_URL ||
-    process.env.API_URL ||
-    "http://localhost:8000"
+    process.env.API_INTERNAL_URL || "http://api:8000"
   ).replace(/\/+$/, "");
   try {
     const res = await fetch(
