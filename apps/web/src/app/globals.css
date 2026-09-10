@@ -839,25 +839,32 @@ h1 {
 }
 .bars {
   display: flex;
-  gap: 6px;
+  gap: 3px;
   height: calc(100% - 21px);
   width: 100%;
   align-items: flex-end;
   justify-content: center;
 }
 .bar {
-  width: 15px;
+  width: 12px;
+  flex-shrink: 0;
   border-radius: 4px 4px 0 0;
   min-height: 2px;
 }
 .income-bar {
   background: #78ad91;
 }
+.investment-bar {
+  background: #72a7d8;
+}
 .expense-bar {
   background: #d88982;
 }
 .current .income-bar {
   background: #328160;
+}
+.current .investment-bar {
+  background: #367fbd;
 }
 .current .expense-bar {
   background: #bf5049;
@@ -2109,7 +2116,7 @@ legend {
     width: 36px;
   }
   .bar {
-    width: 12px;
+    width: 10px;
   }
   .bottom-grid {
     gap: 18px;
@@ -2219,6 +2226,9 @@ legend {
 }
 .flow-income {
   background: #328160;
+}
+.flow-investment {
+  background: #367fbd;
 }
 .flow-expense {
   background: #bf5049;

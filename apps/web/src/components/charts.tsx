@@ -13,7 +13,8 @@ export function CashFlow({ data, t, money, locale }: Props) {
     100,
     ...data.history.flatMap((h) => [
       h.income,
-      h.expenses + h.bills + h.invested,
+      h.invested,
+      h.expenses + h.bills,
     ]),
   );
   const active = data.history.some(
@@ -32,6 +33,10 @@ export function CashFlow({ data, t, money, locale }: Props) {
             {t.income}
           </span>
           <span>
+            <i className="dot flow-investment" />
+            {t.investment}
+          </span>
+          <span>
             <i className="dot flow-expense" />
             {t.totalOut}
           </span>
@@ -40,7 +45,7 @@ export function CashFlow({ data, t, money, locale }: Props) {
       <div
         className="bar-chart"
         role="img"
-        aria-label={`${t.cashflow}: ${data.history.map((h) => `${h.month}: ${t.income} ${money(h.income)}, ${t.totalOut} ${money(h.expenses + h.bills + h.invested)}`).join("; ")}`}
+        aria-label={`${t.cashflow}: ${data.history.map((h) => `${h.month}: ${t.income} ${money(h.income)}, ${t.investment} ${money(h.invested)}, ${t.totalOut} ${money(h.expenses + h.bills)}`).join("; ")}`}
       >
         <div className="chart-grid">
           {[1, 0.75, 0.5, 0.25, 0].map((p) => (
@@ -68,11 +73,16 @@ export function CashFlow({ data, t, money, locale }: Props) {
                   title={`${t.income}: ${money(h.income)}`}
                 />
                 <div
+                  className="bar investment-bar"
+                  style={{ height: `${(h.invested / max) * 100}%` }}
+                  title={`${t.investment}: ${money(h.invested)}`}
+                />
+                <div
                   className="bar expense-bar"
                   style={{
-                    height: `${((h.expenses + h.bills + h.invested) / max) * 100}%`,
+                    height: `${((h.expenses + h.bills) / max) * 100}%`,
                   }}
-                  title={`${t.totalOut}: ${money(h.expenses + h.bills + h.invested)}`}
+                  title={`${t.totalOut}: ${money(h.expenses + h.bills)}`}
                 />
               </div>
               <span>
@@ -88,7 +98,7 @@ export function CashFlow({ data, t, money, locale }: Props) {
       <div className="chart-foot">
         <span>{t.totalOut}</span>
         <span>
-          {t.expense} + {t.bill} + {t.investment}
+          {t.expense} + {t.bill}
         </span>
       </div>
     </section>
