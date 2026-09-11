@@ -52,7 +52,7 @@ export function EntryForm({
     entry?.kind === "investment" && entry.done,
   );
   const [recurring, setRecurring] = useState(
-    (entry?.kind || initialKind) === "bill",
+    entry ? Boolean(entry.recurrenceId) : initialKind === "bill",
   );
   const [date, setDate] = useState(
     entry?.date || (month === localMonth() ? localDate() : `${month}-01`),
@@ -93,6 +93,9 @@ export function EntryForm({
       currency: data.profile.currency,
     }).format(value / 100);
   const percentageInvestment = kind === "investment" && percentageMode;
+  const isRecurring = entry ? Boolean(entry.recurrenceId) : recurring;
+  const tracksExpectedAndActual =
+    isRecurring && (kind === "bill" || kind === "investment");
   const title = {
     income: t.newIncome,
     expense: t.newExpense,
@@ -115,6 +118,17 @@ export function EntryForm({
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const enteredAmount = cents(f.get("amount"));
+    const expectedAmount =
+      kind === "bill"
+        ? tracksExpectedAndActual
+          ? cents(f.get("expectedAmount"))
+          : enteredAmount
+        : kind === "investment"
+          ? percentageInvestment
+            ? estimate
+            : enteredAmount
+          : null;
     await save(
       entry ? `entries/${entry.id}` : "entries",
       entry ? "PATCH" : "POST",
@@ -123,26 +137,21 @@ export function EntryForm({
         kind,
         amount:
           kind === "bill"
-            ? cents(f.get("expectedAmount"))
+            ? expectedAmount
             : percentageInvestment
               ? 0
-              : cents(f.get("amount")),
+              : enteredAmount,
         date,
         categoryId: kind === "investment" ? null : category || null,
         labelIds: labels,
         method: kind === "investment" ? "transfer" : f.get("method"),
         done: kind === "investment" ? confirmed : kind === "bill" && billDone,
-        expectedAmount:
-          kind === "bill"
-            ? cents(f.get("expectedAmount"))
-            : kind === "investment"
-              ? percentageInvestment
-                ? estimate
-                : cents(f.get("amount"))
-              : null,
+        expectedAmount,
         paidAmount:
           (kind === "bill" && billDone) || (kind === "investment" && confirmed)
-            ? cents(f.get("paidAmount"))
+            ? tracksExpectedAndActual
+              ? cents(f.get("paidAmount"))
+              : expectedAmount
             : null,
         percentageBps: percentageInvestment
           ? Math.round(Number(percentage) * 100)
@@ -201,6 +210,19 @@ export function EntryForm({
           autoFocus
         />
       </label>
+      {!entry && kind !== "expense" && (
+        <label className="checkbox-line recurrence-option">
+          <input
+            type="checkbox"
+            checked={recurring}
+            onChange={(e) => setRecurring(e.target.checked)}
+          />
+          <span>
+            <Repeat2 size={15} /> {t.recurring}
+            <small>{t.recurringHint}</small>
+          </span>
+        </label>
+      )}
       {kind === "investment" && (
         <fieldset>
           <legend>{t.calculationMode}</legend>
@@ -273,7 +295,9 @@ export function EntryForm({
             {kind === "income"
               ? t.incomeAmount
               : kind === "investment"
-                ? t.expectedAmount
+                ? tracksExpectedAndActual
+                  ? t.expectedAmount
+                  : t.amount
                 : t.expenseAmount}{" "}
             ({data.profile.currency})
             <input
@@ -290,14 +314,16 @@ export function EntryForm({
                     ? (entry.expectedAmount ?? entry.amount) / 100
                     : estimate / 100
                   : entry
-                    ? entry.amount / 100
+                    ? kind === "investment" && tracksExpectedAndActual
+                      ? (entry.expectedAmount ?? entry.amount) / 100
+                      : entry.amount / 100
                     : ""
               }
               placeholder="0.00"
             />
           </label>
         )}
-        {kind === "bill" && (
+        {kind === "bill" && tracksExpectedAndActual && (
           <label>
             {t.expectedAmount} ({data.profile.currency})
             <input
@@ -312,6 +338,21 @@ export function EntryForm({
               }
             />
             <small>{t.expectedAmountHint}</small>
+          </label>
+        )}
+        {kind === "bill" && !tracksExpectedAndActual && (
+          <label>
+            {t.amount} ({data.profile.currency})
+            <input
+              name="amount"
+              type="number"
+              min="0"
+              max="10000000"
+              step="0.01"
+              required
+              defaultValue={entry ? entry.amount / 100 : ""}
+              placeholder="0.00"
+            />
           </label>
         )}
         <label>
@@ -365,10 +406,14 @@ export function EntryForm({
             />
             <span>
               {t.confirmInvestment}
-              <small>{t.confirmInvestmentHint}</small>
+              <small>
+                {tracksExpectedAndActual
+                  ? t.confirmInvestmentHint
+                  : t.confirmSingleInvestmentHint}
+              </small>
             </span>
           </label>
-          {confirmed && (
+          {confirmed && tracksExpectedAndActual && (
             <label>
               {t.savedAmount} ({data.profile.currency})
               <input
@@ -431,7 +476,7 @@ export function EntryForm({
           </span>
         </label>
       )}
-      {kind === "bill" && billDone && (
+      {kind === "bill" && billDone && tracksExpectedAndActual && (
         <label>
           {t.paidAmount} ({data.profile.currency})
           <input
@@ -448,24 +493,10 @@ export function EntryForm({
           <small>{t.paidAmountHint}</small>
         </label>
       )}
-      {!entry && kind !== "expense" ? (
-        <label className="checkbox-line recurrence-option">
-          <input
-            type="checkbox"
-            checked={recurring}
-            onChange={(e) => setRecurring(e.target.checked)}
-          />
-          <span>
-            <Repeat2 size={15} /> {t.recurring}
-            <small>{t.recurringHint}</small>
-          </span>
-        </label>
-      ) : (
-        entry?.recurrenceId && (
-          <p className="form-note">
-            {kind === "bill" ? t.billEditHint : t.editHint}
-          </p>
-        )
+      {entry?.recurrenceId && (
+        <p className="form-note">
+          {kind === "bill" ? t.billEditHint : t.editHint}
+        </p>
       )}
       <div className="form-actions">
         <button

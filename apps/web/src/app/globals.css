@@ -760,6 +760,11 @@ h1 {
   color: var(--muted);
   margin-top: 7px;
 }
+.panel-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .charts-grid {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
@@ -2275,7 +2280,7 @@ legend {
 }
 .tracking-row {
   display: grid;
-  grid-template-columns: 19px minmax(90px, 1fr) auto auto auto;
+  grid-template-columns: 19px minmax(90px, 1fr) auto auto auto auto;
   gap: 10px;
   align-items: center;
   min-width: 435px;
@@ -2296,6 +2301,21 @@ legend {
 .tracking-status {
   white-space: nowrap;
   color: var(--muted);
+}
+.tracking-recurrence {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: #8d9489;
+  background: #f3f5ef;
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 9px;
+}
+.tracking-recurrence.is-recurring {
+  color: #927537;
+  background: #f8f3e6;
 }
 .tracking-row.is-complete .tracking-name,
 .tracking-row.is-complete .tracking-status {

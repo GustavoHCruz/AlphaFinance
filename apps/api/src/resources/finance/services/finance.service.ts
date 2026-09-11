@@ -299,6 +299,14 @@ export class FinanceService {
         throw new BadRequestException(
           "Recurring entries must stay in their original month",
         );
+      if (
+        entry.recurrenceId &&
+        dto.kind !== undefined &&
+        dto.kind !== entry.kind
+      )
+        throw new BadRequestException(
+          "The kind of a recurring entry cannot be changed",
+        );
       await this.references(em, { ...entry, ...dto });
       const updated = await em.save(
         Entry,
@@ -308,19 +316,58 @@ export class FinanceService {
           month: (dto.date || entry.date).slice(0, 7),
         }),
       );
-      if (
-        entry.kind === "bill" &&
-        updated.kind === "bill" &&
-        entry.recurrenceId &&
-        dto.expectedAmount != null
-      ) {
-        await em.update(Recurrence, entry.recurrenceId, {
-          amount: dto.expectedAmount,
-        });
-        await em.query(
-          `UPDATE entries SET "expectedAmount" = $1, amount = CASE WHEN done THEN amount ELSE $1 END WHERE "recurrenceId" = $2 AND kind = 'bill'`,
-          [dto.expectedAmount, entry.recurrenceId],
+      if (entry.recurrenceId) {
+        const day = Number(updated.date.slice(8));
+        const tracksExpectedAmount = ["bill", "investment"].includes(
+          updated.kind,
         );
+        const recurringAmount = tracksExpectedAmount
+          ? (updated.expectedAmount ?? updated.amount)
+          : updated.amount;
+        await em.update(Recurrence, entry.recurrenceId, {
+          description: updated.description,
+          kind: updated.kind,
+          amount: recurringAmount,
+          day,
+          categoryId: updated.categoryId,
+          labelIds: updated.labelIds,
+          method: updated.method,
+          percentageBps: updated.percentageBps,
+          incomeCategoryId: updated.incomeCategoryId,
+        });
+        const futureEntries = await em
+          .createQueryBuilder(Entry, "entry")
+          .where('entry."recurrenceId" = :recurrenceId', {
+            recurrenceId: entry.recurrenceId,
+          })
+          .andWhere("entry.month > :month", { month: entry.month })
+          .getMany();
+        if (futureEntries.length)
+          await em.save(
+            Entry,
+            futureEntries.map((future) => {
+              const [year, futureMonth] = future.month.split("-").map(Number);
+              const lastDay = new Date(
+                Date.UTC(year, futureMonth, 0),
+              ).getUTCDate();
+              return {
+                ...future,
+                description: updated.description,
+                kind: updated.kind,
+                amount: future.done ? future.amount : recurringAmount,
+                date: `${future.month}-${String(Math.min(day, lastDay)).padStart(2, "0")}`,
+                categoryId: updated.categoryId,
+                labelIds: updated.labelIds,
+                method: updated.method,
+                percentageBps: updated.percentageBps,
+                incomeCategoryId: updated.incomeCategoryId,
+                estimated: updated.kind === "investment" && !future.done,
+                expectedAmount: tracksExpectedAmount
+                  ? recurringAmount
+                  : null,
+              };
+            }),
+          );
       }
       await this.recalculate(em, updated.month);
       return em.findOneByOrFail(Entry, { id });

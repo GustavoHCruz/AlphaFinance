@@ -110,6 +110,11 @@ export function FinanceApp() {
         done: false,
         paidAmount: null,
       });
+    else if (!entry.recurrenceId)
+      void save(`entries/${entry.id}`, "PATCH", {
+        done: true,
+        paidAmount: entry.amount,
+      });
     else open({ type: "payment", entry });
   }
   useEffect(() => {
@@ -217,22 +222,18 @@ export function FinanceApp() {
         year: "numeric",
       })
     : "—";
+  const compareEntriesAscending = (a: Entry, b: Entry) =>
+    a.date.localeCompare(b.date) ||
+    entryName(a).localeCompare(entryName(b), locale, { sensitivity: "base" }) ||
+    a.id.localeCompare(b.id);
   const bills =
     data?.entries
       .filter((e) => e.kind === "bill")
-      .sort(
-        (a, b) =>
-          a.date.localeCompare(b.date) ||
-          a.description.localeCompare(b.description),
-      ) || [];
+      .sort(compareEntriesAscending) || [];
   const investments =
     data?.entries
       .filter((e) => e.kind === "investment")
-      .sort(
-        (a, b) =>
-          a.date.localeCompare(b.date) ||
-          a.description.localeCompare(b.description),
-      ) || [];
+      .sort(compareEntriesAscending) || [];
   const trackingPage = page === "bills" || page === "investment";
   const tracked = page === "investment" ? investments : bills;
   const pending = bills.filter((e) => !e.done);
@@ -311,7 +312,17 @@ export function FinanceApp() {
       <section className="panel tracking-panel">
         <div className="panel-heading">
           <h2>{investment ? t.trackInvestments : t.upcoming}</h2>
-          <span className="count-pill">{rows.length}</span>
+          <div className="panel-heading-actions">
+            <span className="count-pill">{rows.length}</span>
+            <button
+              className="text-button"
+              title={t.viewAll}
+              onClick={() => navigate(investment ? "investment" : "bills")}
+            >
+              {t.viewAll}
+              <ArrowUpRight size={15} />
+            </button>
+          </div>
         </div>
         <div className="tracking-scroll">
           <div className="tracking-list">
@@ -333,16 +344,24 @@ export function FinanceApp() {
                   {e.description}
                 </strong>
                 <time dateTime={e.date}>{formatDate(e.date)}</time>
+                <span
+                  className={`tracking-recurrence ${e.recurrenceId ? "is-recurring" : ""}`}
+                >
+                  {e.recurrenceId && <Repeat2 size={11} />}
+                  {e.recurrenceId ? t.monthly : t.oneTime}
+                </span>
                 <span className="tracking-status">
                   {e.done ? (investment ? t.saved : t.paid) : t.pending}
                 </span>
                 <span className="tracking-value">
                   <small>
-                    {e.done
-                      ? investment
-                        ? t.saved
-                        : t.paidShort
-                      : t.expectedShort}
+                    {e.recurrenceId
+                      ? e.done
+                        ? investment
+                          ? t.saved
+                          : t.paidShort
+                        : t.expectedShort
+                      : t.amount}
                   </small>
                   <strong>{money(e.amount)}</strong>
                 </span>
@@ -461,7 +480,7 @@ export function FinanceApp() {
                             <Repeat2 size={12} aria-label={t.recurring} />
                           )}
                         </small>
-                        {e.kind === "bill" && (
+                        {e.kind === "bill" && e.recurrenceId && (
                           <small>
                             {t.expectedAmount}:{" "}
                             {money(e.expectedAmount ?? e.amount)}
@@ -852,13 +871,14 @@ export function FinanceApp() {
                         <h2>{t.recent}</h2>
                         <button
                           className="text-button"
+                          title={t.viewAll}
                           onClick={() => navigate("transactions")}
                         >
                           {t.viewAll}
                           <ArrowUpRight size={15} />
                         </button>
                       </div>
-                      {entryTable(data.entries.slice(0, 5), true)}
+                      {entryTable(data.entries.slice(0, 10), true)}
                     </section>
                   </div>
                 </>
@@ -1036,6 +1056,14 @@ export function FinanceApp() {
                           (!trackingPage ||
                             r.kind ===
                               (page === "investment" ? "investment" : "bill")),
+                      )
+                      .sort(
+                        (a, b) =>
+                          a.day - b.day ||
+                          a.description.localeCompare(b.description, locale, {
+                            sensitivity: "base",
+                          }) ||
+                          a.id.localeCompare(b.id),
                       )
                       .map((r) => (
                         <div className="recurring-row" key={r.id}>

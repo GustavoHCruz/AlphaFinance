@@ -13,7 +13,7 @@ export const dictionaries = {
       "Este valor pertence somente a este mês e substitui a previsão no saldo disponível.",
     completeBill: "Registrar pagamento",
     billEditHint:
-      "A previsão é atualizada em toda a série. O pagamento e os outros detalhes pertencem somente a este mês.",
+      "As alterações valem para este mês e os próximos. Pagamentos já registrados permanecem inalterados.",
     paidAmountRequired:
       "Informe o valor efetivamente pago para concluir a conta.",
     copyTag: "Copiar para outro tipo",
@@ -79,6 +79,8 @@ export const dictionaries = {
       "A estimativa reserva valor no saldo disponível. Confirme o aporte para manter fixo o valor realmente investido.",
     confirmInvestmentHint:
       "Informe o valor efetivamente investido. Ele ficará fixo, mesmo que suas receitas mudem.",
+    confirmSingleInvestmentHint:
+      "Marca o aporte como concluído usando o valor informado acima.",
     investmentBudgetHint: "Inclui aportes confirmados e estimativas reservadas",
     categoryInUse:
       "Esta categoria é usada como base de um investimento por percentual. Ela não pode ser excluída enquanto houver vínculos.",
@@ -147,10 +149,12 @@ export const dictionaries = {
     close: "Fechar",
     type: "Tipo",
     recurring: "Repetir mensalmente",
+    monthly: "Mensal",
+    oneTime: "Avulso",
     recurringHint:
       "Repete o valor e os detalhes nos próximos meses. A conclusão é independente.",
     editHint:
-      "A edição afeta somente este lançamento. Para mudar a série, encerre-a e crie uma nova.",
+      "As alterações valem para este mês e os próximos. Conclusões já registradas permanecem inalteradas.",
     done: "Marcar como concluída",
     doneHint: "Contas pendentes também são reservadas no saldo disponível.",
     pix: "Pix",
@@ -247,7 +251,7 @@ export const dictionaries = {
       "This value applies only to this month and replaces the estimate in your available balance.",
     completeBill: "Record payment",
     billEditHint:
-      "The expected amount updates across the series. The payment and other details apply only to this month.",
+      "Changes apply to this month and future months. Recorded payments remain unchanged.",
     paidAmountRequired: "Enter the actual paid amount to complete the bill.",
     copyTag: "Copy to another type",
     copyTo: "Copy to",
@@ -309,6 +313,8 @@ export const dictionaries = {
       "An estimate reserves money in your available balance. Confirm the contribution to freeze the amount actually invested.",
     confirmInvestmentHint:
       "Enter the amount actually invested. It will stay fixed even if your income changes.",
+    confirmSingleInvestmentHint:
+      "Marks the contribution as completed using the amount entered above.",
     investmentBudgetHint:
       "Includes confirmed contributions and reserved estimates",
     categoryInUse:
@@ -376,10 +382,12 @@ export const dictionaries = {
     close: "Close",
     type: "Type",
     recurring: "Repeat every month",
+    monthly: "Monthly",
+    oneTime: "One-time",
     recurringHint:
       "Repeats the amount and details in upcoming months. Completion is independent.",
     editHint:
-      "Edits apply only to this transaction. To change a series, stop it and create a new one.",
+      "Changes apply to this month and future months. Recorded completions remain unchanged.",
     done: "Mark as completed",
     doneHint: "Pending bills are also reserved in your available balance.",
     pix: "Pix",
