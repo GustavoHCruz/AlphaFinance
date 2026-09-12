@@ -4,3 +4,10 @@ dist/
 .env
 *.log
 *.tsbuildinfo
+backups/
+artifacts/
+.expo/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/modules/*/android/build/

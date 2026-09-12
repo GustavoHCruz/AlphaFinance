@@ -1,0 +1,41 @@
+{
+  "name": "@alphafinance/mobile",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "expo": "~57.0.22",
+    "expo-crypto": "~57.0.3",
+    "expo-document-picker": "~57.0.2",
+    "expo-file-system": "~57.0.7",
+    "expo-sqlite": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "@types/react": "~19.2.2",
+    "expo-doctor": "^1.20.4",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "android:device": "expo run:android --device",
+    "android:apk": "cd android && gradlew.bat assembleRelease",
+    "prebuild:android": "expo prebuild --platform android",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "test:native:android": "cd android && gradlew.bat :alpha-native:testReleaseUnitTest",
+    "validate:snapshot": "tsx scripts/validate-snapshot.ts",
+    "doctor": "expo-doctor",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}

@@ -1,40 +1,35 @@
 # AlphaFinance
 
-Personal finance management with a NestJS API, a Next.js web app, and PostgreSQL.
-Track income, expenses, recurring bills, and investments.
+O AlphaFinance está migrando para um aplicativo mobile local-first. O app Android em `apps/mobile` usa React Native, TypeScript e SQLite, funciona sem servidor e mantém cada instalação independente.
 
-## Requirements
+A aplicação web anterior (`apps/web` + `apps/api` + PostgreSQL) permanece preservada durante a migração. Não remova os volumes Docker antes de validar o histórico no Android.
 
-- Docker Engine with Docker Compose, or Docker Desktop
+## Aplicativo Android
 
-## Run
+```powershell
+npm install
+npm run mobile:typecheck
+npm run mobile:test
+npm run mobile:android
+```
 
-Copy `.env.example` to `.env`, configure the required values, and run from the repository root:
+O guia completo do ambiente, emulador e aparelho físico está em [docs/ANDROID_DEVELOPMENT.md](docs/ANDROID_DEVELOPMENT.md). A arquitetura e as decisões de privacidade estão em [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md).
+Os avisos atuais de dependências e seu impacto estão registrados em [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
 
-```bash
+## Migrar o histórico existente
+
+Com o PostgreSQL antigo em execução:
+
+```powershell
+npm run legacy:export-mobile
+```
+
+O arquivo JSON gerado em `backups/` pode ser escolhido em **Organizar e proteger → Importar histórico antigo** no aplicativo. Veja [docs/MIGRATION.md](docs/MIGRATION.md).
+
+## Aplicação web preservada
+
+```powershell
 docker compose up --build
 ```
 
-## Local services
-
-| Service           | Address                      |
-| ----------------- | ---------------------------- |
-| Web               | <http://localhost:3000>      |
-| API documentation | <http://localhost:8000/docs> |
-| PostgreSQL        | `localhost:5432`             |
-
-These are the default addresses. Local ports can be configured through `WEB_PORT`, `API_PORT`, and `POSTGRES_PORT` in `.env`. Only the web service needs a tunnel: the browser calls `/api` on the web domain, and the web container forwards requests to `http://api:8000` over the Docker network. No public URLs need to be configured in the application.
-
-All published ports are bound to `127.0.0.1`.
-
-Stop the application while preserving its data:
-
-```bash
-docker compose down
-```
-
-Remove the application and all persisted data:
-
-```bash
-docker compose down --volumes
-```
+As portas efetivas vêm do `.env`; nesta máquina, web, API e PostgreSQL estão publicados apenas em `127.0.0.1`. A auditoria funcional do produto anterior está em [docs/CURRENT_SYSTEM_AUDIT.md](docs/CURRENT_SYSTEM_AUDIT.md).
