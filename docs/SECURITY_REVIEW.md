@@ -11,4 +11,4 @@ Revisão executada em 12 de setembro de 2026.
 
 O APK release não declara permissão de internet, armazenamento amplo, sobreposição ou vibração. Isso reduz a superfície do aplicativo instalado, mas não substitui a necessidade de acompanhar atualizações oficiais do Expo e do backend preservado.
 
-Antes de expor novamente a aplicação web antiga à internet, atualize e reavalie NestJS/`multer`. Durante a migração ela deve permanecer limitada às portas locais já configuradas. Antes de publicar o mobile em uma loja, repita `npm audit`, `expo-doctor`, testes e build com uma chave de assinatura de produção mantida fora do repositório.
+Antes de expor novamente a aplicação web antiga à internet, atualize e reavalie NestJS/`multer`. Durante a migração ela deve permanecer limitada às portas locais já configuradas. O aplicativo mobile é distribuído somente como APK gerado e instalado diretamente.

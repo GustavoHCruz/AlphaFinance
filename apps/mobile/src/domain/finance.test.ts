@@ -24,8 +24,6 @@ function transaction(overrides: Partial<Transaction>): Transaction {
     isCarryover: false,
     expectedAmount: null,
     paidAmount: null,
-    accountId: null,
-    cardId: null,
     installmentGroupId: null,
     installmentNumber: null,
     installmentCount: null,

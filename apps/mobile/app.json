@@ -2,7 +2,7 @@
   "expo": {
     "name": "AlphaFinance",
     "slug": "alphafinance",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "scheme": "alphafinance",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.alphafinance.mobile",
+      "versionCode": 2,
       "blockedPermissions": [
         "android.permission.INTERNET",
         "android.permission.READ_EXTERNAL_STORAGE",

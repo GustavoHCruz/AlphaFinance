@@ -1,7 +1,5 @@
 import type {
-  Account,
   AlphaFinanceSnapshot,
-  Card,
   Dashboard,
   InboxEvent,
   NativeNotificationCandidate,
@@ -23,8 +21,6 @@ export interface FinanceRepository {
   stopRecurrence(id: string, fromMonth: string): Promise<void>;
   saveTag(tag: Omit<Tag, "id" | "position"> & { id?: string }): Promise<void>;
   deleteTag(id: string): Promise<void>;
-  saveAccount(account: Omit<Account, "id"> & { id?: string }): Promise<void>;
-  saveCard(card: Omit<Card, "id"> & { id?: string }): Promise<void>;
   saveProfile(profile: Profile): Promise<void>;
   enqueueNotification(candidate: NativeNotificationCandidate): Promise<void>;
   listInbox(status?: InboxEvent["status"]): Promise<InboxEvent[]>;

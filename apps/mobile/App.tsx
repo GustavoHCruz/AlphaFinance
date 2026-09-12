@@ -14,7 +14,7 @@ import { colors } from "./src/ui/theme";
 
 export type Tab = "home" | "transactions" | "inbox" | "more";
 export type Editor = { entry?: Transaction; inbox?: InboxEvent } | null;
-export type EntityEditor = "account" | "card" | "tag" | null;
+export type EntityEditor = "tag" | null;
 
 const repository = new SQLiteFinanceRepository();
 const notificationProvider = new AndroidNotificationProvider();
@@ -94,7 +94,7 @@ export default function App() {
       <BottomBar tab={tab} inboxCount={inbox.length} onTab={setTab} onNew={() => setEditor({})} />
     </>}
     {data && editor && <TransactionEditor key={`${editor.entry?.id ?? editor.inbox?.id ?? "new"}-${data.month}`} editor={editor} data={data} close={() => setEditor(null)} save={(draft) => action(() => editor.inbox ? repository.acceptInbox(editor.inbox.id, draft) : editor.entry ? repository.updateTransaction(editor.entry.id, draft) : repository.createTransaction(draft))} remove={editor.entry ? () => Alert.alert("Remover movimentação?", "Ela deixará de aparecer nos totais, mas o registro será mantido para consistência.", [{ text: "Cancelar", style: "cancel" }, { text: "Remover", style: "destructive", onPress: () => void action(() => repository.deleteTransaction(editor.entry!.id)) }]) : undefined} stopRecurrence={editor.entry?.recurrenceId ? () => Alert.alert("Parar recorrência?", "As ocorrências anteriores permanecem; esta e as futuras serão encerradas.", [{ text: "Cancelar", style: "cancel" }, { text: "Parar", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.entry!.recurrenceId!, editor.entry!.month)) }]) : undefined} />}
-    {data && entityEditor && <EntityModal type={entityEditor} data={data} close={() => setEntityEditor(null)} saveAccount={(value) => action(() => repository.saveAccount(value))} saveCard={(value) => action(() => repository.saveCard(value))} saveTag={(value) => action(() => repository.saveTag(value))} />}
+    {data && entityEditor && <EntityModal close={() => setEntityEditor(null)} saveTag={(value) => action(() => repository.saveTag(value))} />}
   </SafeAreaView></SafeAreaProvider>;
 }
 

@@ -21,7 +21,7 @@ O SQLite é a única fonte de verdade do aplicativo. Não existe chamada ao back
 
 `expo-sqlite` abre `alphafinance.db` com chaves estrangeiras, WAL e timeout de concorrência. `PRAGMA user_version` controla migrations exclusivas e incrementais.
 
-O schema mobile contém perfil, classificações, contas, cartões, recorrências, movimentações, parcelas, configurações mensais, estado de providers e eventos do Inbox. Dinheiro permanece em centavos; relacionamentos opcionais permitem importar todo o histórico anterior antes de cadastrar contas/cartões.
+O schema mobile contém perfil, classificações, recorrências, movimentações, parcelas, configurações mensais, estado de providers e eventos do Inbox. Dinheiro permanece em centavos. Não existe cadastro separado de conta bancária ou cartão; “conta” é o tipo financeiro usado para obrigações mensais a pagar.
 
 ## Inbox e providers
 
@@ -35,10 +35,10 @@ O módulo Android usa somente `NotificationListenerService`, mediante concessão
 
 O snapshot lógico v1 é JSON portável entre plataformas. Antes de sair do app ele é criptografado no módulo nativo com AES-256-GCM, chave derivada por PBKDF2-HMAC-SHA-256 (600.000 iterações), salt aleatório de 16 bytes e nonce aleatório de 12 bytes. A senha não é armazenada.
 
-No Android, o Storage Access Framework permite escolher uma pasta provida pelo sistema, incluindo armazenamento local ou um provedor instalado como Google Drive, sem conceder acesso geral à conta. Na restauração, o arquivo é decifrado, validado por schema e integridade referencial e somente depois importado em transação. Antes da substituição, o app grava uma cópia de recuperação não criptografada dentro de seu diretório privado; ela não sai do aparelho.
+No Android, o Storage Access Framework permite escolher uma pasta provida pelo sistema, incluindo armazenamento local ou um provedor instalado como Google Drive, sem conceder acesso geral à conta. Na restauração, o arquivo é decifrado, validado por schema e integridade referencial e somente depois importado em transação. Antes da substituição, o app grava uma cópia de recuperação criptografada dentro de seu diretório privado; ela não sai do aparelho.
 
 ## Privacidade e dependências
 
-Não foram adicionados analytics, crash reporting remoto, telemetria, agregadores financeiros ou SDK do Google Drive. O manifesto de produção bloqueia as permissões de internet, armazenamento amplo, sobreposição e vibração; o acesso a arquivos ocorre pelo seletor do sistema. O backup automático do Android também fica desabilitado, evitando que o banco privado seja enviado sem a escolha explícita do usuário. Expo/React Native, SQLite, seletor de documentos, sistema de arquivos, crypto, Zod, ícones, área segura e SVG são usados localmente; nenhuma dessas integrações é configurada para enviar movimentações.
+Não foram adicionados analytics, crash reporting remoto, telemetria, agregadores financeiros ou SDK do Google Drive. O manifesto do APK bloqueia as permissões de internet, armazenamento amplo, sobreposição e vibração; o acesso a arquivos ocorre pelo seletor do sistema. O backup automático do Android também fica desabilitado, evitando que o banco privado seja enviado sem a escolha explícita do usuário. Expo/React Native, SQLite, seletor de documentos, sistema de arquivos, crypto, Zod, ícones, área segura e SVG são usados localmente; nenhuma dessas integrações é configurada para enviar movimentações.
 
 O acesso global às notificações é uma capacidade exclusivamente Android e opcional. Todo o domínio, banco, UI, Inbox genérico e formato de backup permanecem compartilháveis com uma futura implementação iOS.

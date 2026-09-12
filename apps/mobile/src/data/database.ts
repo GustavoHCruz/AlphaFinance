@@ -4,7 +4,7 @@ export const DATABASE_NAME = "alphafinance.db";
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-const migrations: Array<{ version: number; sql: string }> = [
+const migrations: Array<{ version: number; sql: string; foreignKeysOff?: boolean }> = [
   {
     version: 1,
     sql: `
@@ -151,6 +151,94 @@ const migrations: Array<{ version: number; sql: string }> = [
         ON transactions(inbox_event_id) WHERE inbox_event_id IS NOT NULL;
     `,
   },
+  {
+    version: 4,
+    foreignKeysOff: true,
+    sql: `
+      CREATE TABLE recurrences_v4 (
+        id TEXT PRIMARY KEY,
+        description TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('income','expense','bill','investment')),
+        amount INTEGER NOT NULL,
+        day INTEGER NOT NULL CHECK (day BETWEEN 1 AND 31),
+        start_month TEXT NOT NULL,
+        end_month TEXT,
+        category_id TEXT REFERENCES tags(id) ON DELETE SET NULL,
+        method TEXT NOT NULL DEFAULT 'pix',
+        percentage_bps INTEGER CHECK (percentage_bps BETWEEN 1 AND 10000),
+        income_category_id TEXT REFERENCES tags(id) ON DELETE RESTRICT
+      );
+
+      CREATE TABLE recurrence_labels_v4 (
+        recurrence_id TEXT NOT NULL REFERENCES recurrences_v4(id) ON DELETE CASCADE,
+        label_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (recurrence_id, label_id)
+      );
+
+      CREATE TABLE transactions_v4 (
+        id TEXT PRIMARY KEY,
+        description TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('income','expense','bill','investment')),
+        amount INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        month TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0,1)),
+        category_id TEXT REFERENCES tags(id) ON DELETE SET NULL,
+        method TEXT NOT NULL DEFAULT 'pix',
+        recurrence_id TEXT REFERENCES recurrences_v4(id) ON DELETE SET NULL,
+        deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0,1)),
+        percentage_bps INTEGER CHECK (percentage_bps BETWEEN 1 AND 10000),
+        income_category_id TEXT REFERENCES tags(id) ON DELETE RESTRICT,
+        estimated INTEGER NOT NULL DEFAULT 0 CHECK (estimated IN (0,1)),
+        is_carryover INTEGER NOT NULL DEFAULT 0 CHECK (is_carryover IN (0,1)),
+        expected_amount INTEGER,
+        paid_amount INTEGER,
+        installment_group_id TEXT,
+        installment_number INTEGER,
+        installment_count INTEGER,
+        inbox_event_id TEXT REFERENCES inbox_events(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (recurrence_id, month)
+      );
+
+      CREATE TABLE transaction_labels_v4 (
+        transaction_id TEXT NOT NULL REFERENCES transactions_v4(id) ON DELETE CASCADE,
+        label_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (transaction_id, label_id)
+      );
+
+      INSERT INTO recurrences_v4
+        (id,description,kind,amount,day,start_month,end_month,category_id,method,percentage_bps,income_category_id)
+        SELECT id,description,kind,amount,day,start_month,end_month,category_id,method,percentage_bps,income_category_id
+        FROM recurrences;
+      INSERT INTO recurrence_labels_v4 SELECT recurrence_id,label_id FROM recurrence_labels;
+      INSERT INTO transactions_v4
+        (id,description,kind,amount,date,month,done,category_id,method,recurrence_id,deleted,percentage_bps,income_category_id,estimated,is_carryover,expected_amount,paid_amount,installment_group_id,installment_number,installment_count,inbox_event_id,created_at,updated_at)
+        SELECT id,description,kind,amount,date,month,done,category_id,method,recurrence_id,deleted,percentage_bps,income_category_id,estimated,is_carryover,expected_amount,paid_amount,installment_group_id,installment_number,installment_count,inbox_event_id,created_at,updated_at
+        FROM transactions;
+      INSERT INTO transaction_labels_v4 SELECT transaction_id,label_id FROM transaction_labels;
+
+      DROP TABLE transaction_labels;
+      DROP TABLE transactions;
+      DROP TABLE recurrence_labels;
+      DROP TABLE recurrences;
+      DROP TABLE cards;
+      DROP TABLE accounts;
+
+      ALTER TABLE recurrences_v4 RENAME TO recurrences;
+      ALTER TABLE recurrence_labels_v4 RENAME TO recurrence_labels;
+      ALTER TABLE transactions_v4 RENAME TO transactions;
+      ALTER TABLE transaction_labels_v4 RENAME TO transaction_labels;
+
+      CREATE INDEX transactions_month_idx ON transactions(month, deleted, date DESC);
+      CREATE UNIQUE INDEX transactions_carryover_month_idx
+        ON transactions(month) WHERE is_carryover = 1;
+      CREATE INDEX installments_group_idx ON transactions(installment_group_id, installment_number);
+      CREATE INDEX transactions_inbox_event_idx
+        ON transactions(inbox_event_id) WHERE inbox_event_id IS NOT NULL;
+    `,
+  },
 ];
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -160,10 +248,17 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     let version = result?.user_version ?? 0;
     for (const migration of migrations) {
       if (migration.version <= version) continue;
-      await db.withExclusiveTransactionAsync(async (tx) => {
-        await tx.execAsync(migration.sql);
-        await tx.execAsync(`PRAGMA user_version = ${migration.version}`);
-      });
+      if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = OFF");
+      try {
+        await db.withExclusiveTransactionAsync(async (tx) => {
+          await tx.execAsync(migration.sql);
+          const violations = await tx.getAllAsync("PRAGMA foreign_key_check");
+          if (violations.length) throw new Error(`A migração ${migration.version} criou referências inválidas.`);
+          await tx.execAsync(`PRAGMA user_version = ${migration.version}`);
+        });
+      } finally {
+        if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = ON");
+      }
       version = migration.version;
     }
     return db;

@@ -32,9 +32,9 @@ Para um APK instalável e independente do servidor de desenvolvimento:
 npm run android:apk --workspace apps/mobile
 ```
 
-O APK validado nesta etapa está em `dist/AlphaFinance-android-0.1.0-test.apk`. Ele é um pacote de teste para instalação direta e está assinado com a chave de desenvolvimento gerada localmente; uma publicação em loja deverá usar uma chave de produção criada e guardada fora do repositório.
+O APK validado nesta etapa está em `dist/AlphaFinance-android-0.1.1.apk`. Ele é um pacote pessoal para instalação direta e compartilhamento manual. Todo APK Android precisa de uma assinatura técnica; atualmente o projeto usa a chave de desenvolvimento local.
 
-SHA-256 do pacote validado: `9DF4CE4A6AB5DDAA7B74D73E52544A7590D6C698D6B6C509C1216F797C85BA66`.
+SHA-256 do pacote validado: `B986EB2A2C58427E50ABD93B90EAED83FDE62A562F29087983A8E8C621725F6B`.
 
 ## Usar um celular por USB
 

@@ -40,14 +40,11 @@ try {
     createdAt: new Date().toISOString(),
     profile,
     tags,
-    accounts: [],
-    cards: [],
     recurrences: recurrences.map((row) => ({
       id: row.id, description: row.description, kind: row.kind, amount: row.amount,
       day: row.day, startMonth: row.startMonth, endMonth: row.endMonth,
       categoryId: row.categoryId, labelIds: row.labelIds || [], method: row.method,
       percentageBps: row.percentageBps, incomeCategoryId: row.incomeCategoryId,
-      accountId: null, cardId: null,
     })),
     transactions: entries.map((row) => ({
       id: row.id, description: row.description, kind: row.kind, amount: row.amount,
@@ -55,7 +52,7 @@ try {
       labelIds: row.labelIds || [], method: row.method, recurrenceId: row.recurrenceId,
       deleted: row.deleted, percentageBps: row.percentageBps, incomeCategoryId: row.incomeCategoryId,
       estimated: row.estimated, isCarryover: row.isCarryover, expectedAmount: row.expectedAmount,
-      paidAmount: row.paidAmount, accountId: null, cardId: null, installmentGroupId: null,
+      paidAmount: row.paidAmount, installmentGroupId: null,
       installmentNumber: null, installmentCount: null, inboxEventId: null,
       createdAt: timestampFor(row.date), updatedAt: timestampFor(row.date),
     })),

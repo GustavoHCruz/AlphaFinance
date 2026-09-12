@@ -28,30 +28,6 @@ const snapshotSchema = z.object({
       position: z.number().int(),
     }),
   ).max(10_000),
-  accounts: z.array(
-    z.object({
-      id: uuid,
-      name: z.string().trim().min(1).max(100),
-      type: z.enum(["checking", "savings", "cash", "other"]),
-      institution: z.string().max(100).nullable(),
-      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-      openingBalance: cents,
-      archived: z.boolean(),
-    }),
-  ).max(10_000),
-  cards: z.array(
-    z.object({
-      id: uuid,
-      name: z.string().trim().min(1).max(100),
-      accountId: nullableUuid,
-      lastFour: z.string().regex(/^\d{4}$/).nullable(),
-      closingDay: z.number().int().min(1).max(31).nullable(),
-      dueDay: z.number().int().min(1).max(31).nullable(),
-      limitCents: z.number().int().min(0).max(1_000_000_000).nullable(),
-      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-      archived: z.boolean(),
-    }),
-  ).max(10_000),
   recurrences: z.array(z.object({
     id: uuid,
     description: z.string().min(1).max(160),
@@ -65,8 +41,6 @@ const snapshotSchema = z.object({
     method,
     percentageBps: z.number().int().min(1).max(10_000).nullable(),
     incomeCategoryId: nullableUuid,
-    accountId: nullableUuid,
-    cardId: nullableUuid,
   })).max(100_000),
   transactions: z.array(z.object({
     id: uuid,
@@ -87,8 +61,6 @@ const snapshotSchema = z.object({
     isCarryover: z.boolean(),
     expectedAmount: cents.nullable(),
     paidAmount: cents.nullable(),
-    accountId: nullableUuid,
-    cardId: nullableUuid,
     installmentGroupId: nullableUuid,
     installmentNumber: z.number().int().min(1).max(120).nullable(),
     installmentCount: z.number().int().min(1).max(120).nullable(),
@@ -121,25 +93,18 @@ export function validateSnapshot(input: unknown): AlphaFinanceSnapshot {
     if (new Set(values).size !== values.length) throw new Error(`${label} contém IDs duplicados.`);
   };
   unique(snapshot.tags.map((item) => item.id), "Categorias");
-  unique(snapshot.accounts.map((item) => item.id), "Contas");
-  unique(snapshot.cards.map((item) => item.id), "Cartões");
   unique(snapshot.recurrences.map((item) => item.id), "Recorrências");
   unique(snapshot.transactions.map((item) => item.id), "Movimentações");
   unique(snapshot.inboxEvents.map((item) => item.id), "Inbox");
 
   const tags = new Set(snapshot.tags.map((item) => item.id));
-  const accounts = new Set(snapshot.accounts.map((item) => item.id));
-  const cards = new Set(snapshot.cards.map((item) => item.id));
   const recurrences = new Set(snapshot.recurrences.map((item) => item.id));
   const transactions = new Set(snapshot.transactions.map((item) => item.id));
   const inbox = new Set(snapshot.inboxEvents.map((item) => item.id));
-  for (const card of snapshot.cards) if (card.accountId && !accounts.has(card.accountId)) throw new Error("Cartão referencia uma conta inexistente.");
   for (const item of [...snapshot.recurrences, ...snapshot.transactions]) {
     if (item.categoryId && !tags.has(item.categoryId)) throw new Error("Movimentação referencia categoria inexistente.");
     if (item.labelIds.some((id) => !tags.has(id))) throw new Error("Movimentação referencia etiqueta inexistente.");
     if (item.incomeCategoryId && !tags.has(item.incomeCategoryId)) throw new Error("Cálculo percentual referencia categoria de renda inexistente.");
-    if (item.accountId && !accounts.has(item.accountId)) throw new Error("Movimentação referencia conta inexistente.");
-    if (item.cardId && !cards.has(item.cardId)) throw new Error("Movimentação referencia cartão inexistente.");
   }
   for (const item of snapshot.transactions) {
     if (item.recurrenceId && !recurrences.has(item.recurrenceId)) throw new Error("Movimentação referencia recorrência inexistente.");

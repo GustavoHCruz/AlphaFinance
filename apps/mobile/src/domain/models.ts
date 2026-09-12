@@ -23,28 +23,6 @@ export type Tag = {
   position: number;
 };
 
-export type Account = {
-  id: string;
-  name: string;
-  type: "checking" | "savings" | "cash" | "other";
-  institution: string | null;
-  color: string;
-  openingBalance: number;
-  archived: boolean;
-};
-
-export type Card = {
-  id: string;
-  name: string;
-  accountId: string | null;
-  lastFour: string | null;
-  closingDay: number | null;
-  dueDay: number | null;
-  limitCents: number | null;
-  color: string;
-  archived: boolean;
-};
-
 export type Transaction = {
   id: string;
   description: string;
@@ -64,8 +42,6 @@ export type Transaction = {
   isCarryover: boolean;
   expectedAmount: number | null;
   paidAmount: number | null;
-  accountId: string | null;
-  cardId: string | null;
   installmentGroupId: string | null;
   installmentNumber: number | null;
   installmentCount: number | null;
@@ -87,8 +63,6 @@ export type Recurrence = {
   method: PaymentMethod;
   percentageBps: number | null;
   incomeCategoryId: string | null;
-  accountId: string | null;
-  cardId: string | null;
 };
 
 export type InboxEvent = {
@@ -122,8 +96,6 @@ export type TransactionDraft = {
   incomeCategoryId?: string | null;
   expectedAmount?: number | null;
   paidAmount?: number | null;
-  accountId?: string | null;
-  cardId?: string | null;
   installmentCount?: number;
   inboxEventId?: string | null;
 };
@@ -145,8 +117,6 @@ export type Dashboard = {
   previousBalance: number;
   entries: Transaction[];
   tags: Tag[];
-  accounts: Account[];
-  cards: Card[];
   recurrences: Recurrence[];
   profile: Profile;
   summary: MonthSummary;
@@ -171,8 +141,6 @@ export type AlphaFinanceSnapshot = {
   createdAt: string;
   profile: Profile;
   tags: Tag[];
-  accounts: Account[];
-  cards: Card[];
   recurrences: Recurrence[];
   transactions: Transaction[];
   inboxEvents: InboxEvent[];

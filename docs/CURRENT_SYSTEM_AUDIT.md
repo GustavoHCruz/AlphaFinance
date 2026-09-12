@@ -30,7 +30,7 @@ O dashboard apresenta saldo, receitas, despesas, contas pendentes, investimentos
 - `entries` e etiquetas associadas, incluindo previsto/realizado, recorrência, estimativa e saldo anterior.
 - `month_settings`: opção de transportar o saldo anterior.
 
-Contas bancárias e cartões não existiam como entidades; foram adicionados somente ao modelo mobile. O histórico importado permanece válido sem atribuição a conta/cartão.
+Contas bancárias e cartões não existiam como entidades. Após a revisão do escopo, também não fazem parte do modelo mobile; “conta” no produto continua significando uma obrigação mensal a pagar.
 
 ## Fluxos de interface
 

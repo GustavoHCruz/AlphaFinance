@@ -10,7 +10,7 @@ O Docker antigo deve continuar ativo durante a validação. Há um dump PostgreS
 npm run legacy:export-mobile
 ```
 
-O exportador conecta ao PostgreSQL em transação somente leitura e cria `backups/alphafinance-mobile-import-<data>.json`. Ele converte perfil, categorias/etiquetas, recorrências, movimentações e configuração dos meses para o snapshot v1. Contas, cartões e Inbox começam vazios porque não existiam no modelo anterior.
+O exportador conecta ao PostgreSQL em transação somente leitura e cria `backups/alphafinance-mobile-import-<data>.json`. Ele converte perfil, categorias/etiquetas, recorrências, movimentações e configuração dos meses para o snapshot v1. O Inbox começa vazio porque não existia no modelo anterior.
 
 ## Importar no Android
 
