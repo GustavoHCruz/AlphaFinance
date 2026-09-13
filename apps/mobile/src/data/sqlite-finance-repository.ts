@@ -345,6 +345,30 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       await this.db.runAsync("INSERT INTO tags(id,name,color,type,kind,position,active) VALUES (?,?,?,?,?,?,1)", id(), name, tag.color, tag.type, tag.kind, (row?.position ?? -1) + 1);
     }
   }
+  async updateTagGroup(originalName: string, tag: Pick<Tag, "name" | "color" | "type"> & { kinds: Tag["kind"][] }) {
+    await this.ensureReady();
+    const name = tag.name.trim();
+    const selectedKinds = [...new Set(tag.kinds)];
+    if (!name) throw new Error("Informe um nome para a classificação.");
+    if (name.length > 50) throw new Error("Use um nome com no máximo 50 caracteres.");
+    if (!selectedKinds.length) throw new Error("Escolha pelo menos um tipo de movimentação.");
+    await this.db.withExclusiveTransactionAsync(async (tx) => {
+      const rows = await tx.getAllAsync<{ id: string; kind: Tag["kind"] }>("SELECT id,kind FROM tags WHERE lower(name)=lower(?) AND type=?", originalName.trim(), tag.type);
+      if (!rows.length) throw new Error("Classificação não encontrada.");
+      if (name.toLocaleLowerCase("pt-BR") !== originalName.trim().toLocaleLowerCase("pt-BR")) {
+        const collision = await tx.getFirstAsync<{ id: string }>("SELECT id FROM tags WHERE lower(name)=lower(?) AND type=? LIMIT 1", name, tag.type);
+        if (collision) throw new Error("Já existe uma classificação com esse nome.");
+      }
+      for (const row of rows) {
+        await tx.runAsync("UPDATE tags SET name=?,color=?,active=? WHERE id=?", name, tag.color, selectedKinds.includes(row.kind) ? 1 : 0, row.id);
+      }
+      const existingKinds = new Set(rows.map((row) => row.kind));
+      for (const kind of selectedKinds.filter((item) => !existingKinds.has(item))) {
+        const position = await tx.getFirstAsync<{ position: number | null }>("SELECT MAX(position) position FROM tags WHERE type=? AND kind=?", tag.type, kind);
+        await tx.runAsync("INSERT INTO tags(id,name,color,type,kind,position,active) VALUES (?,?,?,?,?,?,1)", id(), name, tag.color, tag.type, kind, (position?.position ?? -1) + 1);
+      }
+    });
+  }
   async setTagApplicability(tag: Pick<Tag, "name" | "color" | "type">, kind: Tag["kind"], enabled: boolean) {
     await this.ensureReady();
     if (enabled) {
@@ -361,6 +385,20 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       await tx.runAsync("UPDATE transactions SET category_id=NULL WHERE category_id=?", tagId);
       await tx.runAsync("UPDATE recurrences SET category_id=NULL WHERE category_id=?", tagId);
       await tx.runAsync("DELETE FROM tags WHERE id=?", tagId);
+    });
+  }
+  async deleteTagGroup(name: string, type: Tag["type"]) {
+    await this.ensureReady();
+    await this.db.withExclusiveTransactionAsync(async (tx) => {
+      const rows = await tx.getAllAsync<{ id: string }>("SELECT id FROM tags WHERE lower(name)=lower(?) AND type=?", name.trim(), type);
+      if (!rows.length) throw new Error("Classificação não encontrada.");
+      const ids = rows.map((row) => row.id);
+      const placeholders = ids.map(() => "?").join(",");
+      const used = await tx.getFirstAsync(`SELECT id FROM transactions WHERE income_category_id IN (${placeholders}) UNION SELECT id FROM recurrences WHERE income_category_id IN (${placeholders}) LIMIT 1`, ...ids, ...ids);
+      if (used) throw new Error("Categoria usada como base percentual; altere os investimentos primeiro.");
+      await tx.runAsync(`UPDATE transactions SET category_id=NULL WHERE category_id IN (${placeholders})`, ...ids);
+      await tx.runAsync(`UPDATE recurrences SET category_id=NULL WHERE category_id IN (${placeholders})`, ...ids);
+      await tx.runAsync(`DELETE FROM tags WHERE id IN (${placeholders})`, ...ids);
     });
   }
   async saveProfile(profile: Profile) { await this.ensureReady(); await this.db.runAsync("UPDATE profiles SET locale=?,currency=? WHERE id=1", profile.locale, profile.currency); }

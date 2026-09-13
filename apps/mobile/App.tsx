@@ -15,7 +15,10 @@ import { colors } from "./src/ui/theme";
 export type Tab = "home" | "transactions" | "inbox" | "more";
 export type TransactionFilter = "all" | TransactionKind;
 export type Editor = { entry?: Transaction; inbox?: InboxEvent; recurrence?: Recurrence } | null;
-export type EntityEditor = TagType | null;
+export type EntityEditor = {
+  type: TagType;
+  source?: { name: string; color: string; kinds: TransactionKind[] };
+} | null;
 
 const repository = new SQLiteFinanceRepository();
 const notificationProvider = new AndroidNotificationProvider();
@@ -96,7 +99,14 @@ export default function App() {
       <BottomBar tab={tab} inboxCount={inbox.length} onTab={setTab} onNew={() => setEditor({})} />
     </>}
     {data && editor && <TransactionEditor key={`${editor.entry?.id ?? editor.inbox?.id ?? editor.recurrence?.id ?? "new"}-${data.month}`} editor={editor} data={data} close={() => setEditor(null)} save={(draft) => action(() => editor.inbox ? repository.acceptInbox(editor.inbox.id, draft) : editor.recurrence ? repository.updateRecurrence(editor.recurrence.id, draft, month) : editor.entry ? repository.updateTransaction(editor.entry.id, draft) : repository.createTransaction(draft))} remove={editor.entry ? () => Alert.alert("Remover movimentação?", "Ela deixará de aparecer nos totais, mas o registro será mantido para consistência.", [{ text: "Cancelar", style: "cancel" }, { text: "Remover", style: "destructive", onPress: () => void action(() => repository.deleteTransaction(editor.entry!.id)) }]) : undefined} stopRecurrence={editor.recurrence ? () => Alert.alert("Excluir recorrência?", "Os lançamentos anteriores permanecem; este mês e os próximos serão removidos.", [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.recurrence!.id, month)) }]) : editor.entry?.recurrenceId ? () => Alert.alert("Parar recorrência?", "As ocorrências anteriores permanecem; esta e as futuras serão encerradas.", [{ text: "Cancelar", style: "cancel" }, { text: "Parar", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.entry!.recurrenceId!, editor.entry!.month)) }]) : undefined} />}
-    {data && entityEditor && <EntityModal type={entityEditor} close={() => setEntityEditor(null)} saveTags={(value) => action(async () => { for (const kind of value.kinds) await repository.saveTag({ name: value.name, color: value.color, type: value.type, kind }); })} />}
+    {data && entityEditor && <EntityModal editor={entityEditor} close={() => setEntityEditor(null)} saveTags={(value) => action(async () => {
+      if (entityEditor.source) await repository.updateTagGroup(entityEditor.source.name, value);
+      else for (const kind of value.kinds) await repository.saveTag({ name: value.name, color: value.color, type: value.type, kind });
+    })} remove={entityEditor.source ? () => Alert.alert(
+      `Excluir ${entityEditor.type === "category" ? "categoria" : "etiqueta"}?`,
+      "Ela será removida das movimentações em que é usada.",
+      [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => void action(() => repository.deleteTagGroup(entityEditor.source!.name, entityEditor.type)) }],
+    ) : undefined} />}
   </SafeAreaView></SafeAreaProvider>;
 }
 

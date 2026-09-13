@@ -43,4 +43,16 @@ class InterNotificationParserTest {
     assertEquals("income", parsed?.suggestedKind)
     assertEquals("pix", parsed?.suggestedMethod)
   }
+
+  @Test
+  fun parsesDebitPurchaseNotificationUsedByInter() {
+    val parsed = InterNotificationParser.parse(
+      "br.com.intermedium",
+      "Olá Gustavo, você acaba de comprar no débido no HIROTA PLANO ALEXANDRI o valor de R$ 59,13",
+    )
+    assertEquals(5_913L, parsed?.amount)
+    assertEquals("expense", parsed?.suggestedKind)
+    assertEquals("debit", parsed?.suggestedMethod)
+    assertEquals("Compra no débito (Inter)", parsed?.description)
+  }
 }

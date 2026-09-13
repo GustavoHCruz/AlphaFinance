@@ -20,8 +20,10 @@ export interface FinanceRepository {
   setTransactionDone(id: string, done: boolean, actualAmount?: number): Promise<void>;
   stopRecurrence(id: string, fromMonth: string): Promise<void>;
   saveTag(tag: Omit<Tag, "id" | "position" | "active"> & { id?: string }): Promise<void>;
+  updateTagGroup(originalName: string, tag: Pick<Tag, "name" | "color" | "type"> & { kinds: Tag["kind"][] }): Promise<void>;
   setTagApplicability(tag: Pick<Tag, "name" | "color" | "type">, kind: Tag["kind"], enabled: boolean): Promise<void>;
   deleteTag(id: string): Promise<void>;
+  deleteTagGroup(name: string, type: Tag["type"]): Promise<void>;
   saveProfile(profile: Profile): Promise<void>;
   enqueueNotification(candidate: NativeNotificationCandidate): Promise<void>;
   listInbox(status?: InboxEvent["status"]): Promise<InboxEvent[]>;

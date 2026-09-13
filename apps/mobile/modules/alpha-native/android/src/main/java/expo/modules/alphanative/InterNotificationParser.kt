@@ -21,7 +21,9 @@ object InterNotificationParser {
       return Parsed(amount, "expense", "pix", "PIX enviado (Inter)", 0.92)
     if (normalized.contains("cartao de credito") || normalized.contains("compra no credito") || normalized.contains("compra foi realizada no cartao"))
       return Parsed(amount, "expense", "credit", "Compra no cartão (Inter)", 0.96)
-    if (normalized.contains("cartao de debito") || normalized.contains("compra no debito"))
+    if (normalized.contains("cartao de debito") || normalized.contains("compra no debito") ||
+      normalized.contains("comprar no debito") || normalized.contains("comprou no debito") ||
+      normalized.contains("compra no debido") || normalized.contains("comprar no debido") || normalized.contains("comprou no debido"))
       return Parsed(amount, "expense", "debit", "Compra no débito (Inter)", 0.94)
     if (normalized.contains("pagamento") || normalized.contains("transferencia"))
       return Parsed(amount, "expense", "transfer", "Pagamento (Inter)", 0.75)

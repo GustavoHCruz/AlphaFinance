@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Editor } from "../../App";
+import type { Editor, EntityEditor } from "../../App";
 import type { Dashboard, PaymentMethod, TagType, TransactionDraft, TransactionKind } from "../domain/models";
 import { calculateEstimatedInvestment } from "../domain/finance";
 import { formatMoney, localDate, parseMoney } from "./format";
@@ -114,10 +114,11 @@ function Field({ label, value, onChange, placeholder, keyboard = "default" }: { 
 const tagColors = [colors.green, colors.red, colors.gold, colors.blue, "#8267A8", "#C06B3E"];
 const kindLabels: Record<TransactionKind, string> = { income: "Receita", expense: "Despesa", bill: "Conta", investment: "Investimento" };
 
-export function EntityModal({ type, close, saveTags }: { type: TagType; close: () => void; saveTags: (value: { name: string; color: string; type: TagType; kinds: TransactionKind[] }) => Promise<void> }) {
-  const [name, setName] = useState("");
-  const [kinds, setKinds] = useState<TransactionKind[]>(["expense"]);
-  const [color, setColor] = useState(type === "category" ? colors.red : colors.gold);
+export function EntityModal({ editor, close, saveTags, remove }: { editor: NonNullable<EntityEditor>; close: () => void; saveTags: (value: { name: string; color: string; type: TagType; kinds: TransactionKind[] }) => Promise<void>; remove?: () => void }) {
+  const { type, source } = editor;
+  const [name, setName] = useState(source?.name ?? "");
+  const [kinds, setKinds] = useState<TransactionKind[]>(source?.kinds ?? ["expense"]);
+  const [color, setColor] = useState(source?.color ?? (type === "category" ? colors.red : colors.gold));
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (!name.trim()) return Alert.alert("Informe um nome.");
@@ -129,7 +130,7 @@ export function EntityModal({ type, close, saveTags }: { type: TagType; close: (
   };
   const toggleKind = (kind: TransactionKind) => setKinds((current) => current.includes(kind) ? current.filter((item) => item !== kind) : [...current, kind]);
   const requestClose = () => { if (Keyboard.isVisible()) Keyboard.dismiss(); else close(); };
-  return <Modal visible transparent animationType="fade" onRequestClose={requestClose}><KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : "height"}><SafeAreaView edges={["bottom"]} style={styles.dialog}><View style={styles.modalHeader}><Pressable onPress={close}><Text style={styles.link}>Cancelar</Text></Pressable><Text style={styles.modalTitle}>Nova {type === "category" ? "categoria" : "etiqueta"}</Text><View style={{ width: 45 }} /></View><ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets><Field label="Nome" value={name} onChange={setName} placeholder={type === "category" ? "Ex.: Alimentação" : "Ex.: Essencial"} /><Text style={styles.fieldLabel}>Válida para</Text><View style={styles.checkGrid}>{(["income", "expense", "bill", "investment"] as const).map((kind) => <Pressable key={kind} onPress={() => toggleKind(kind)} style={styles.checkOption}><Ionicons name={kinds.includes(kind) ? "checkbox" : "square-outline"} size={22} color={kinds.includes(kind) ? colors.green : colors.muted} /><Text style={styles.checkLabel}>{kindLabels[kind]}</Text></Pressable>)}</View><Text style={styles.fieldLabel}>Cor</Text><View style={styles.colorChoices}>{tagColors.map((item) => <Pressable accessibilityLabel={`Cor ${item}`} key={item} onPress={() => setColor(item)} style={[styles.colorChoice, { backgroundColor: item }, color === item && styles.colorChoiceSelected]}>{color === item && <Ionicons name="checkmark" size={16} color="#fff" />}</Pressable>)}</View><Pressable style={styles.primaryButton} onPress={() => void submit()} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Salvar</Text>}</Pressable></ScrollView></SafeAreaView></KeyboardAvoidingView></Modal>;
+  return <Modal visible transparent animationType="fade" onRequestClose={requestClose}><KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : "height"}><SafeAreaView edges={["bottom"]} style={styles.dialog}><View style={styles.modalHeader}><Pressable onPress={close}><Text style={styles.link}>Cancelar</Text></Pressable><Text style={styles.modalTitle}>{source ? "Editar" : "Nova"} {type === "category" ? "categoria" : "etiqueta"}</Text><View style={{ width: 45 }} /></View><ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets><Field label="Nome" value={name} onChange={setName} placeholder={type === "category" ? "Ex.: Alimentação" : "Ex.: Essencial"} /><Text style={styles.fieldLabel}>Válida para</Text><View style={styles.checkGrid}>{(["income", "expense", "bill", "investment"] as const).map((kind) => <Pressable key={kind} onPress={() => toggleKind(kind)} style={styles.checkOption}><Ionicons name={kinds.includes(kind) ? "checkbox" : "square-outline"} size={22} color={kinds.includes(kind) ? colors.green : colors.muted} /><Text style={styles.checkLabel}>{kindLabels[kind]}</Text></Pressable>)}</View><Text style={styles.fieldLabel}>Cor</Text><View style={styles.colorChoices}>{tagColors.map((item) => <Pressable accessibilityLabel={`Cor ${item}`} key={item} onPress={() => setColor(item)} style={[styles.colorChoice, { backgroundColor: item }, color === item && styles.colorChoiceSelected]}>{color === item && <Ionicons name="checkmark" size={16} color="#fff" />}</Pressable>)}</View><Pressable style={styles.primaryButton} onPress={() => void submit()} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Salvar</Text>}</Pressable>{remove && <Pressable style={styles.textButton} onPress={remove}><Text style={[styles.link, { color: colors.red }]}>Excluir {type === "category" ? "categoria" : "etiqueta"}</Text></Pressable>}</ScrollView></SafeAreaView></KeyboardAvoidingView></Modal>;
 }
 
 const styles = StyleSheet.create({
