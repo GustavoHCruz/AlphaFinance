@@ -1,6 +1,6 @@
 {
   "name": "@alphafinance/mobile",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -32,10 +32,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "test:native:android": "cd android && gradlew.bat :alpha-native:testReleaseUnitTest",
-    "validate:snapshot": "tsx scripts/validate-snapshot.ts",
     "doctor": "expo-doctor",
-    "ios": "expo run:ios",
-    "web": "expo start --web"
+    "ios": "expo run:ios"
   },
   "private": true
 }

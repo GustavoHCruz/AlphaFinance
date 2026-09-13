@@ -40,7 +40,7 @@ function mapRecurrence(row: Row): Recurrence {
 }
 
 function mapTag(row: Row): Tag {
-  return { id: String(row.id), name: String(row.name), color: String(row.color), type: row.type as Tag["type"], kind: row.kind as TransactionKind, position: Number(row.position) };
+  return { id: String(row.id), name: String(row.name), color: String(row.color), type: row.type as Tag["type"], kind: row.kind as TransactionKind, position: Number(row.position), active: row.active === undefined ? true : bool(row.active) };
 }
 function mapInbox(row: Row): InboxEvent {
   return { id: String(row.id), source: row.source as InboxEvent["source"], sourceEventId: nullable(row.source_event_id as string | null), institution: nullable(row.institution as string | null), amount: nullable(row.amount as number | null), suggestedKind: nullable(row.suggested_kind as TransactionKind | null), suggestedMethod: nullable(row.suggested_method as PaymentMethod | null), description: nullable(row.description as string | null), occurredAt: String(row.occurred_at), status: row.status as InboxEvent["status"], confidence: nullable(row.confidence as number | null), transactionId: nullable(row.transaction_id as string | null), createdAt: String(row.created_at), reviewedAt: nullable(row.reviewed_at as string | null) };
@@ -82,6 +82,10 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     for (const labelId of draft.labelIds ?? []) {
       const tag = await db.getFirstAsync<Row>("SELECT id FROM tags WHERE id=? AND type='label' AND kind=?", labelId, draft.kind);
       if (!tag) throw new Error("Etiqueta incompatível com o tipo da movimentação.");
+    }
+    if (draft.incomeCategoryId) {
+      const tag = await db.getFirstAsync<Row>("SELECT id FROM tags WHERE id=? AND type='category' AND kind='income'", draft.incomeCategoryId);
+      if (!tag) throw new Error("Categoria de receita inválida para o cálculo do investimento.");
     }
   }
 
@@ -141,7 +145,7 @@ export class SQLiteFinanceRepository implements FinanceRepository {
   }
 
   private async materializeAndRecalculate(db: SQLiteDatabase, requestedMonth: string) {
-    const maxRow = await db.getFirstAsync<{ month: string | null }>("SELECT MAX(month) month FROM transactions WHERE deleted=0");
+    const maxRow = await db.getFirstAsync<{ month: string | null }>("SELECT MAX(month) month FROM transactions WHERE deleted=0 AND is_carryover=0");
     const horizon = maxRow?.month && maxRow.month > requestedMonth ? maxRow.month : requestedMonth;
     const recurrenceRows = await db.getAllAsync<Row>(`${recurrenceSelect} ORDER BY start_month`);
     for (const row of recurrenceRows) {
@@ -166,12 +170,21 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       }
     }
 
-    const carryoverMonths = await db.getAllAsync<{ month: string }>("SELECT month FROM month_settings WHERE carryover=1 ORDER BY month");
-    for (const { month } of carryoverMonths) {
-      const stamp = now();
-      await db.runAsync(`INSERT OR IGNORE INTO transactions
-        (id,description,kind,amount,date,month,done,method,deleted,estimated,is_carryover,created_at,updated_at)
-        VALUES (?,'Saldo do mês anterior','income',0,?,?,1,'transfer',0,0,1,?,?)`, id(), `${month}-01`, month, stamp, stamp);
+    const bounds = await db.getFirstAsync<{ first_month: string | null; last_month: string | null }>(
+      "SELECT MIN(month) first_month,MAX(month) last_month FROM transactions WHERE deleted=0 AND is_carryover=0",
+    );
+    if (bounds?.first_month) {
+      const carryoverStart = shiftDateByMonths(`${bounds.first_month}-01`, 1).slice(0, 7);
+      const carryoverEnd = bounds.last_month && bounds.last_month > requestedMonth ? bounds.last_month : requestedMonth;
+      if (carryoverStart <= carryoverEnd) {
+        for (const month of monthsBetween(carryoverStart, carryoverEnd)) {
+          const stamp = now();
+          await db.runAsync(`INSERT OR IGNORE INTO transactions
+            (id,description,kind,amount,date,month,done,method,deleted,estimated,is_carryover,created_at,updated_at)
+            VALUES (?,'Saldo do mês anterior','income',0,?,?,1,'transfer',0,0,1,?,?)`, id(), `${month}-01`, month, stamp, stamp);
+          await db.runAsync("UPDATE transactions SET deleted=0,description='Saldo do mês anterior',updated_at=? WHERE month=? AND is_carryover=1", stamp, month);
+        }
+      }
     }
 
     const all = (await db.getAllAsync<Row>(`${transactionSelect} WHERE t.deleted=0 ORDER BY t.month,t.date,t.id`)).map(mapTransaction);
@@ -181,8 +194,22 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     for (const [month, entries] of grouped) {
       const carryover = entries.find((entry) => entry.isCarryover);
       if (carryover) {
-        carryover.amount = balances.get(previousMonth(month)) ?? 0;
-        await db.runAsync("UPDATE transactions SET amount=?,updated_at=? WHERE id=?", carryover.amount, now(), carryover.id);
+        const previousBalance = balances.get(previousMonth(month)) ?? 0;
+        carryover.kind = previousBalance < 0 ? "expense" : "income";
+        carryover.amount = Math.abs(previousBalance);
+        carryover.description = "Saldo do mês anterior";
+        carryover.done = true;
+        carryover.method = "transfer";
+        carryover.estimated = false;
+        carryover.expectedAmount = null;
+        carryover.paidAmount = null;
+        await db.runAsync(
+          "UPDATE transactions SET description='Saldo do mês anterior',kind=?,amount=?,done=1,method='transfer',estimated=0,expected_amount=NULL,paid_amount=NULL,category_id=NULL,updated_at=? WHERE id=?",
+          carryover.kind,
+          carryover.amount,
+          now(),
+          carryover.id,
+        );
       }
       for (const entry of entries.filter((item) => item.estimated && item.percentageBps != null)) {
         const amount = calculateEstimatedInvestment(entries, entry.percentageBps!, entry.incomeCategoryId);
@@ -197,12 +224,11 @@ export class SQLiteFinanceRepository implements FinanceRepository {
   async dashboard(month: string): Promise<Dashboard> {
     await this.ensureReady();
     await this.db.withExclusiveTransactionAsync((tx) => this.materializeAndRecalculate(tx, month));
-    const entries = (await this.db.getAllAsync<Row>(`${transactionSelect} WHERE t.month=? AND t.deleted=0 ORDER BY t.is_carryover DESC,t.date DESC,t.description`, month)).map(mapTransaction);
+    const entries = (await this.db.getAllAsync<Row>(`${transactionSelect} WHERE t.month=? AND t.deleted=0 ORDER BY t.date DESC,t.is_carryover ASC,t.description`, month)).map(mapTransaction);
     const tags = (await this.db.getAllAsync<Row>("SELECT * FROM tags ORDER BY position,name,id")).map(mapTag);
     const recurrences = (await this.db.getAllAsync<Row>(recurrenceSelect)).map(mapRecurrence);
     const profileRow = await this.db.getFirstAsync<Row>("SELECT locale,currency FROM profiles WHERE id=1");
     const profile = { locale: profileRow?.locale ?? "pt-BR", currency: profileRow?.currency ?? "BRL" } as Profile;
-    const settings = await this.db.getFirstAsync<{ carryover: number }>("SELECT carryover FROM month_settings WHERE month=?", month);
     const months = Array.from({ length: 6 }, (_, index) => {
       const date = new Date(`${month}-01T12:00:00Z`); date.setUTCMonth(date.getUTCMonth() - 5 + index); return date.toISOString().slice(0, 7);
     });
@@ -211,9 +237,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       const rows = (await this.db.getAllAsync<Row>(`${transactionSelect} WHERE t.month=? AND t.deleted=0`, historyMonth)).map(mapTransaction);
       history.push({ month: historyMonth, ...summarize(rows) });
     }
-    const previousRows = (await this.db.getAllAsync<Row>(`${transactionSelect} WHERE t.month=? AND t.deleted=0`, previousMonth(month))).map(mapTransaction);
     const pending = await this.db.getFirstAsync<{ count: number }>("SELECT COUNT(*) count FROM inbox_events WHERE status='PENDING'");
-    return { month, carryoverEnabled: bool(settings?.carryover), previousBalance: summarize(previousRows).remaining, entries, tags, recurrences, profile, summary: summarize(entries), history, pendingInboxCount: pending?.count ?? 0 };
+    return { month, entries, tags, recurrences, profile, summary: summarize(entries), history, pendingInboxCount: pending?.count ?? 0 };
   }
 
   async createTransaction(input: TransactionDraft): Promise<Transaction[]> {
@@ -233,7 +258,7 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       const row = await tx.getFirstAsync<Row>(`${transactionSelect} WHERE t.id=? AND t.deleted=0`, transactionId);
       if (!row) throw new Error("Movimentação não encontrada.");
       const existing = mapTransaction(row);
-      if (existing.isCarryover) throw new Error("Gerencie o saldo anterior pela opção do mês.");
+      if (existing.isCarryover) throw new Error("O saldo do mês anterior é calculado automaticamente.");
       const draft = validateDraft({ description: patch.description ?? existing.description, kind: patch.kind ?? existing.kind, amount: patch.amount ?? existing.amount, date: patch.date ?? existing.date, done: patch.done ?? existing.done, categoryId: patch.categoryId === undefined ? existing.categoryId : patch.categoryId, labelIds: patch.labelIds ?? existing.labelIds, method: patch.method ?? existing.method, percentageBps: patch.percentageBps === undefined ? existing.percentageBps : patch.percentageBps, incomeCategoryId: patch.incomeCategoryId === undefined ? existing.incomeCategoryId : patch.incomeCategoryId, expectedAmount: patch.expectedAmount === undefined ? existing.expectedAmount : patch.expectedAmount, paidAmount: patch.paidAmount === undefined ? existing.paidAmount : patch.paidAmount, installmentCount: 1, inboxEventId: existing.inboxEventId });
       if (existing.recurrenceId && draft.kind !== existing.kind) throw new Error("O tipo de uma recorrência não pode ser alterado.");
       if (existing.recurrenceId && monthFromDate(draft.date) !== existing.month) throw new Error("Uma ocorrência recorrente deve permanecer no mês original.");
@@ -252,6 +277,42 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     });
   }
 
+  async updateRecurrence(recurrenceId: string, input: TransactionDraft, fromMonth: string): Promise<void> {
+    await this.ensureReady();
+    await this.db.withExclusiveTransactionAsync(async (tx) => {
+      const row = await tx.getFirstAsync<Row>(`${recurrenceSelect} WHERE r.id=?`, recurrenceId);
+      if (!row) throw new Error("Recorrência não encontrada.");
+      const recurrence = mapRecurrence(row);
+      if (input.kind !== recurrence.kind) throw new Error("O tipo de uma recorrência não pode ser alterado.");
+      const draft = validateDraft({ ...input, kind: recurrence.kind, recurring: false, installmentCount: 1, done: false, paidAmount: null });
+      await this.validateReferences(tx, draft);
+      const tracked = this.trackedValues(draft);
+      const recurringAmount = tracked.expectedAmount ?? tracked.amount;
+      const day = Number(draft.date.slice(8));
+      await tx.runAsync(`UPDATE recurrences SET description=?,amount=?,day=?,category_id=?,method=?,percentage_bps=?,income_category_id=? WHERE id=?`,
+        draft.description, recurringAmount, day, nullable(draft.categoryId), draft.method!, nullable(draft.percentageBps), nullable(draft.incomeCategoryId), recurrenceId);
+      await tx.runAsync("DELETE FROM recurrence_labels WHERE recurrence_id=?", recurrenceId);
+      await this.insertLabels(tx, "recurrence_labels", "recurrence_id", recurrenceId, draft.labelIds!);
+
+      const futureRows = await tx.getAllAsync<Row>(`${transactionSelect} WHERE t.recurrence_id=? AND t.month>=?`, recurrenceId, fromMonth);
+      for (const futureRow of futureRows) {
+        const entry = mapTransaction(futureRow);
+        const [year, monthNumber] = entry.month.split("-").map(Number);
+        const lastDay = new Date(Date.UTC(year, monthNumber, 0, 12)).getUTCDate();
+        const date = `${entry.month}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+        const trackedKind = recurrence.kind === "bill" || recurrence.kind === "investment";
+        const amount = trackedKind && entry.done ? entry.amount : recurringAmount;
+        const expectedAmount = trackedKind ? recurringAmount : null;
+        const paidAmount = trackedKind && entry.done ? entry.paidAmount ?? entry.amount : null;
+        const estimated = recurrence.kind === "investment" && !entry.done ? 1 : 0;
+        await tx.runAsync(`UPDATE transactions SET description=?,amount=?,date=?,category_id=?,method=?,percentage_bps=?,income_category_id=?,estimated=?,expected_amount=?,paid_amount=?,updated_at=? WHERE id=?`,
+          draft.description, amount, date, nullable(draft.categoryId), draft.method!, nullable(draft.percentageBps), nullable(draft.incomeCategoryId), estimated, expectedAmount, paidAmount, now(), entry.id);
+        await tx.runAsync("DELETE FROM transaction_labels WHERE transaction_id=?", entry.id);
+        await this.insertLabels(tx, "transaction_labels", "transaction_id", entry.id, draft.labelIds!);
+      }
+    });
+  }
+
   async deleteTransaction(transactionId: string) { await this.ensureReady(); await this.db.runAsync("UPDATE transactions SET deleted=1,updated_at=? WHERE id=? AND is_carryover=0", now(), transactionId); }
   async setTransactionDone(transactionId: string, done: boolean, actualAmount?: number) {
     await this.ensureReady();
@@ -261,14 +322,6 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     const amount = done && actualAmount != null ? actualAmount : Number(row.expected_amount ?? row.amount);
     await this.db.runAsync("UPDATE transactions SET done=?,estimated=?,paid_amount=?,amount=?,updated_at=? WHERE id=?", done ? 1 : 0, row.kind === "investment" && !done ? 1 : 0, done ? actualAmount ?? null : null, amount, now(), transactionId);
   }
-  async setCarryover(month: string, enabled: boolean) {
-    await this.ensureReady();
-    await this.db.withExclusiveTransactionAsync(async (tx) => {
-      await tx.runAsync("INSERT INTO month_settings(month,carryover) VALUES (?,?) ON CONFLICT(month) DO UPDATE SET carryover=excluded.carryover", month, enabled ? 1 : 0);
-      if (!enabled) await tx.runAsync("UPDATE transactions SET deleted=1,updated_at=? WHERE month=? AND is_carryover=1", now(), month);
-      await this.materializeAndRecalculate(tx, month);
-    });
-  }
   async stopRecurrence(recurrenceId: string, fromMonth: string) {
     await this.ensureReady();
     await this.db.withExclusiveTransactionAsync(async (tx) => {
@@ -277,14 +330,28 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     });
   }
 
-  async saveTag(tag: Omit<Tag, "id" | "position"> & { id?: string }) {
+  async saveTag(tag: Omit<Tag, "id" | "position" | "active"> & { id?: string }) {
     await this.ensureReady();
-    if (tag.kind === "investment" && tag.type === "category") throw new Error("Investimentos usam apenas etiquetas.");
-    if (tag.id) await this.db.runAsync("UPDATE tags SET name=?,color=? WHERE id=?", tag.name.trim(), tag.color, tag.id);
+    const name = tag.name.trim();
+    if (!name) throw new Error("Informe um nome para a classificação.");
+    if (tag.id) await this.db.runAsync("UPDATE tags SET name=?,color=?,active=1 WHERE id=?", name, tag.color, tag.id);
     else {
+      const existing = await this.db.getFirstAsync<{ id: string }>("SELECT id FROM tags WHERE lower(name)=lower(?) AND type=? AND kind=? LIMIT 1", name, tag.type, tag.kind);
+      if (existing) {
+        await this.db.runAsync("UPDATE tags SET color=?,active=1 WHERE id=?", tag.color, existing.id);
+        return;
+      }
       const row = await this.db.getFirstAsync<{ position: number | null }>("SELECT MAX(position) position FROM tags WHERE type=? AND kind=?", tag.type, tag.kind);
-      await this.db.runAsync("INSERT INTO tags(id,name,color,type,kind,position) VALUES (?,?,?,?,?,?)", id(), tag.name.trim(), tag.color, tag.type, tag.kind, (row?.position ?? -1) + 1);
+      await this.db.runAsync("INSERT INTO tags(id,name,color,type,kind,position,active) VALUES (?,?,?,?,?,?,1)", id(), name, tag.color, tag.type, tag.kind, (row?.position ?? -1) + 1);
     }
+  }
+  async setTagApplicability(tag: Pick<Tag, "name" | "color" | "type">, kind: Tag["kind"], enabled: boolean) {
+    await this.ensureReady();
+    if (enabled) {
+      await this.saveTag({ ...tag, kind });
+      return;
+    }
+    await this.db.runAsync("UPDATE tags SET active=0 WHERE lower(name)=lower(?) AND type=? AND kind=?", tag.name.trim(), tag.type, kind);
   }
   async deleteTag(tagId: string) {
     await this.ensureReady();
@@ -337,7 +404,7 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       for (const table of ["transaction_labels", "transactions", "recurrence_labels", "recurrences", "inbox_events", "month_settings", "tags"])
         await tx.execAsync(`DELETE FROM ${table}`);
       await tx.runAsync("UPDATE profiles SET locale=?,currency=? WHERE id=1", snapshot.profile.locale, snapshot.profile.currency);
-      for (const item of snapshot.tags) await tx.runAsync("INSERT INTO tags VALUES (?,?,?,?,?,?)", item.id, item.name, item.color, item.type, item.kind, item.position);
+      for (const item of snapshot.tags) await tx.runAsync("INSERT INTO tags(id,name,color,type,kind,position,active) VALUES (?,?,?,?,?,?,?)", item.id, item.name, item.color, item.type, item.kind, item.position, item.active ? 1 : 0);
       for (const item of snapshot.inboxEvents) await tx.runAsync("INSERT INTO inbox_events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", item.id, item.source, item.sourceEventId, item.institution, item.amount, item.suggestedKind, item.suggestedMethod, item.description, item.occurredAt, item.status, item.confidence, item.transactionId, item.createdAt, item.reviewedAt);
       for (const item of snapshot.recurrences) {
         await tx.runAsync("INSERT INTO recurrences VALUES (?,?,?,?,?,?,?,?,?,?,?)", item.id, item.description, item.kind, item.amount, item.day, item.startMonth, item.endMonth, item.categoryId, item.method, item.percentageBps, item.incomeCategoryId);

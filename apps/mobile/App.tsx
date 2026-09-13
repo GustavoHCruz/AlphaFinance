@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View }
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackupService } from "./src/application/backup-service";
 import { SQLiteFinanceRepository } from "./src/data/sqlite-finance-repository";
-import type { Dashboard, InboxEvent, Transaction } from "./src/domain/models";
+import type { Dashboard, InboxEvent, Recurrence, TagType, Transaction, TransactionKind } from "./src/domain/models";
 import { AndroidNotificationProvider } from "./src/providers/android-notification-provider";
 import { EntityModal, TransactionEditor } from "./src/ui/editors";
 import { Home, Inbox, More, Transactions } from "./src/ui/screens";
@@ -13,8 +13,9 @@ import { localMonth, monthLabel, moveMonth } from "./src/ui/format";
 import { colors } from "./src/ui/theme";
 
 export type Tab = "home" | "transactions" | "inbox" | "more";
-export type Editor = { entry?: Transaction; inbox?: InboxEvent } | null;
-export type EntityEditor = "tag" | null;
+export type TransactionFilter = "all" | TransactionKind;
+export type Editor = { entry?: Transaction; inbox?: InboxEvent; recurrence?: Recurrence } | null;
+export type EntityEditor = TagType | null;
 
 const repository = new SQLiteFinanceRepository();
 const notificationProvider = new AndroidNotificationProvider();
@@ -31,6 +32,7 @@ export default function App() {
   const [editor, setEditor] = useState<Editor>(null);
   const [entityEditor, setEntityEditor] = useState<EntityEditor>(null);
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setRefreshing(true);
@@ -86,15 +88,15 @@ export default function App() {
     {error && <Pressable style={styles.error} onPress={() => refresh()}><Text style={styles.errorText}>{error} · toque para tentar novamente</Text></Pressable>}
     {loading || !data ? <View style={styles.center}><ActivityIndicator color={colors.gold} /><Text style={styles.loadingText}>Preparando seu espaço local…</Text></View> : <>
       <View style={styles.content}>
-        {tab === "home" && <Home data={data} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} onNew={() => setEditor({})} onCarryover={(enabled) => action(() => repository.setCarryover(month, enabled))} />}
-        {tab === "transactions" && <Transactions data={data} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} />}
+        {tab === "home" && <Home data={data} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} onNew={() => setEditor({})} onToggleDone={(entry) => action(() => repository.setTransactionDone(entry.id, !entry.done, !entry.done ? entry.expectedAmount ?? entry.amount : undefined))} onSeeAll={(filter) => { setTransactionFilter(filter); setTab("transactions"); }} />}
+        {tab === "transactions" && <Transactions data={data} filter={transactionFilter} onFilter={setTransactionFilter} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} onRecurrence={(recurrence) => setEditor({ recurrence })} onDeleteRecurrence={(recurrence) => Alert.alert("Excluir recorrência?", "Os lançamentos anteriores permanecem. A ocorrência deste mês e as próximas serão removidas.", [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(recurrence.id, month)) }])} />}
         {tab === "inbox" && <Inbox events={inbox} data={data} refreshing={refreshing} refresh={refresh} onAccept={(event) => setEditor({ inbox: event })} onIgnore={(event) => action(() => repository.ignoreInbox(event.id))} />}
         {tab === "more" && <More data={data} notificationEnabled={notificationEnabled} refreshing={refreshing} refresh={refresh} openEntity={setEntityEditor} action={action} backupService={backupService} repository={repository} notificationProvider={notificationProvider} />}
       </View>
       <BottomBar tab={tab} inboxCount={inbox.length} onTab={setTab} onNew={() => setEditor({})} />
     </>}
-    {data && editor && <TransactionEditor key={`${editor.entry?.id ?? editor.inbox?.id ?? "new"}-${data.month}`} editor={editor} data={data} close={() => setEditor(null)} save={(draft) => action(() => editor.inbox ? repository.acceptInbox(editor.inbox.id, draft) : editor.entry ? repository.updateTransaction(editor.entry.id, draft) : repository.createTransaction(draft))} remove={editor.entry ? () => Alert.alert("Remover movimentação?", "Ela deixará de aparecer nos totais, mas o registro será mantido para consistência.", [{ text: "Cancelar", style: "cancel" }, { text: "Remover", style: "destructive", onPress: () => void action(() => repository.deleteTransaction(editor.entry!.id)) }]) : undefined} stopRecurrence={editor.entry?.recurrenceId ? () => Alert.alert("Parar recorrência?", "As ocorrências anteriores permanecem; esta e as futuras serão encerradas.", [{ text: "Cancelar", style: "cancel" }, { text: "Parar", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.entry!.recurrenceId!, editor.entry!.month)) }]) : undefined} />}
-    {data && entityEditor && <EntityModal close={() => setEntityEditor(null)} saveTag={(value) => action(() => repository.saveTag(value))} />}
+    {data && editor && <TransactionEditor key={`${editor.entry?.id ?? editor.inbox?.id ?? editor.recurrence?.id ?? "new"}-${data.month}`} editor={editor} data={data} close={() => setEditor(null)} save={(draft) => action(() => editor.inbox ? repository.acceptInbox(editor.inbox.id, draft) : editor.recurrence ? repository.updateRecurrence(editor.recurrence.id, draft, month) : editor.entry ? repository.updateTransaction(editor.entry.id, draft) : repository.createTransaction(draft))} remove={editor.entry ? () => Alert.alert("Remover movimentação?", "Ela deixará de aparecer nos totais, mas o registro será mantido para consistência.", [{ text: "Cancelar", style: "cancel" }, { text: "Remover", style: "destructive", onPress: () => void action(() => repository.deleteTransaction(editor.entry!.id)) }]) : undefined} stopRecurrence={editor.recurrence ? () => Alert.alert("Excluir recorrência?", "Os lançamentos anteriores permanecem; este mês e os próximos serão removidos.", [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.recurrence!.id, month)) }]) : editor.entry?.recurrenceId ? () => Alert.alert("Parar recorrência?", "As ocorrências anteriores permanecem; esta e as futuras serão encerradas.", [{ text: "Cancelar", style: "cancel" }, { text: "Parar", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(editor.entry!.recurrenceId!, editor.entry!.month)) }]) : undefined} />}
+    {data && entityEditor && <EntityModal type={entityEditor} close={() => setEntityEditor(null)} saveTags={(value) => action(async () => { for (const kind of value.kinds) await repository.saveTag({ name: value.name, color: value.color, type: value.type, kind }); })} />}
   </SafeAreaView></SafeAreaProvider>;
 }
 

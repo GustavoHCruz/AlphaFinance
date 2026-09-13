@@ -52,11 +52,11 @@ export function validateDraft(draft: TransactionDraft): TransactionDraft {
   if (draft.kind === "expense" && draft.recurring) {
     throw new Error("Despesas do dia a dia não geram recorrência automática.");
   }
-  if (draft.kind === "investment" && draft.categoryId) {
-    throw new Error("Investimentos usam etiquetas, não categorias.");
-  }
   if (draft.percentageBps != null && draft.kind !== "investment") {
     throw new Error("Percentuais são exclusivos de investimentos.");
+  }
+  if (draft.percentageBps != null && (!Number.isInteger(draft.percentageBps) || draft.percentageBps < 1 || draft.percentageBps > 10_000)) {
+    throw new Error("A porcentagem do investimento deve estar entre 0,01% e 100%.");
   }
   return {
     ...draft,
@@ -89,6 +89,7 @@ export function calculateEstimatedInvestment(
     .filter(
       (entry) =>
         !entry.deleted &&
+        !entry.isCarryover &&
         entry.kind === "income" &&
         (!incomeCategoryId || entry.categoryId === incomeCategoryId),
     )
@@ -105,7 +106,9 @@ export function summarize(entries: Transaction[]): MonthSummary {
   const income = total("income");
   const expenses = total("expense");
   const bills = total("bill");
-  const invested = total("investment");
+  const invested = visible
+    .filter((entry) => entry.kind === "investment" && entry.done)
+    .reduce((sum, entry) => sum + entry.amount, 0);
   const unpaid = visible
     .filter((entry) => entry.kind === "bill" && !entry.done)
     .reduce((sum, entry) => sum + entry.amount, 0);

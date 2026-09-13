@@ -70,7 +70,7 @@ const migrations: Array<{ version: number; sql: string; foreignKeysOff?: boolean
 
       CREATE TABLE inbox_events (
         id TEXT PRIMARY KEY,
-        source TEXT NOT NULL CHECK (source IN ('MANUAL','ANDROID_NOTIFICATION','CSV_IMPORT','LEGACY_IMPORT','FUTURE')),
+        source TEXT NOT NULL CHECK (source IN ('MANUAL','ANDROID_NOTIFICATION','CSV_IMPORT','FUTURE')),
         source_event_id TEXT,
         institution TEXT,
         amount INTEGER,
@@ -237,6 +237,21 @@ const migrations: Array<{ version: number; sql: string; foreignKeysOff?: boolean
       CREATE INDEX installments_group_idx ON transactions(installment_group_id, installment_number);
       CREATE INDEX transactions_inbox_event_idx
         ON transactions(inbox_event_id) WHERE inbox_event_id IS NOT NULL;
+    `,
+  },
+  {
+    version: 5,
+    sql: `
+      UPDATE transactions
+      SET description = 'Saldo do mês anterior'
+      WHERE is_carryover = 1;
+    `,
+  },
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE tags
+      ADD COLUMN active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1));
     `,
   },
 ];

@@ -6,7 +6,6 @@ export type InboxSource =
   | "MANUAL"
   | "ANDROID_NOTIFICATION"
   | "CSV_IMPORT"
-  | "LEGACY_IMPORT"
   | "FUTURE";
 
 export type Profile = {
@@ -21,6 +20,7 @@ export type Tag = {
   type: TagType;
   kind: TransactionKind;
   position: number;
+  active: boolean;
 };
 
 export type Transaction = {
@@ -113,8 +113,6 @@ export type MonthSummary = {
 
 export type Dashboard = {
   month: string;
-  carryoverEnabled: boolean;
-  previousBalance: number;
   entries: Transaction[];
   tags: Tag[];
   recurrences: Recurrence[];

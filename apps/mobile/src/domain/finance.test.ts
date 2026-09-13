@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import test from "node:test";
-import { installmentAmounts, shiftDateByMonths, summarize } from "./finance";
+import { calculateEstimatedInvestment, installmentAmounts, shiftDateByMonths, summarize } from "./finance";
 import type { Transaction } from "./models";
 
 function transaction(overrides: Partial<Transaction>): Transaction {
@@ -53,4 +53,32 @@ test("conta pendente não reduz o saldo até ser paga", () => {
   ]);
   assert.equal(result.remaining, 3_500);
   assert.equal(result.unpaid, 2_000);
+});
+
+test("investimento pendente não reduz o saldo nem entra no total investido", () => {
+  const result = summarize([
+    transaction({ kind: "income", amount: 5_000 }),
+    transaction({ kind: "investment", amount: 1_500, done: false, estimated: true }),
+  ]);
+  assert.equal(result.invested, 0);
+  assert.equal(result.remaining, 5_000);
+});
+
+test("saldo anterior negativo é contabilizado como despesa", () => {
+  const result = summarize([
+    transaction({ kind: "expense", amount: 16_000, isCarryover: true }),
+    transaction({ kind: "income", amount: 10_000 }),
+  ]);
+  assert.equal(result.expenses, 16_000);
+  assert.equal(result.remaining, -6_000);
+});
+
+test("investimento percentual usa somente a categoria de receita escolhida", () => {
+  const entries = [
+    transaction({ id: "salario", kind: "income", amount: 10_000, categoryId: "salary" }),
+    transaction({ id: "extra", kind: "income", amount: 4_000, categoryId: "extra" }),
+    transaction({ id: "saldo", kind: "income", amount: 50_000, isCarryover: true, categoryId: "salary" }),
+  ];
+  assert.equal(calculateEstimatedInvestment(entries, 1_500, "salary"), 1_500);
+  assert.equal(calculateEstimatedInvestment(entries, 1_500, null), 2_100);
 });

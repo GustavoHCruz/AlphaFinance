@@ -26,6 +26,7 @@ const snapshotSchema = z.object({
       type: z.enum(["category", "label"]),
       kind,
       position: z.number().int(),
+      active: z.boolean().default(true),
     }),
   ).max(10_000),
   recurrences: z.array(z.object({
@@ -70,7 +71,7 @@ const snapshotSchema = z.object({
   })).max(1_000_000),
   inboxEvents: z.array(z.object({
     id: uuid,
-    source: z.enum(["MANUAL", "ANDROID_NOTIFICATION", "CSV_IMPORT", "LEGACY_IMPORT", "FUTURE"]),
+    source: z.enum(["MANUAL", "ANDROID_NOTIFICATION", "CSV_IMPORT", "FUTURE"]),
     sourceEventId: z.string().max(200).nullable(),
     institution: z.string().max(100).nullable(),
     amount: cents.nullable(),

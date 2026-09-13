@@ -2,24 +2,17 @@
   "name": "alphafinance",
   "private": true,
   "workspaces": [
-    "apps/api",
-    "apps/web",
     "apps/mobile"
   ],
   "scripts": {
-    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "build": "npm run android:apk --workspace apps/mobile",
     "mobile": "npm run start --workspace apps/mobile",
     "mobile:android": "npm run android --workspace apps/mobile",
     "mobile:test": "npm run test --workspace apps/mobile",
     "mobile:typecheck": "npm run typecheck --workspace apps/mobile",
-    "legacy:export-mobile": "node scripts/export-legacy-to-mobile.mjs"
-  },
-  "dependencies": {
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "mobile:apk": "npm run android:apk --workspace apps/mobile"
   },
   "overrides": {
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react": "19.2.3"
   }
 }

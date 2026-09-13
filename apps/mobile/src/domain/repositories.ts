@@ -15,11 +15,12 @@ export interface FinanceRepository {
   dashboard(month: string): Promise<Dashboard>;
   createTransaction(draft: TransactionDraft): Promise<Transaction[]>;
   updateTransaction(id: string, draft: Partial<TransactionDraft>): Promise<void>;
+  updateRecurrence(id: string, draft: TransactionDraft, fromMonth: string): Promise<void>;
   deleteTransaction(id: string): Promise<void>;
   setTransactionDone(id: string, done: boolean, actualAmount?: number): Promise<void>;
-  setCarryover(month: string, enabled: boolean): Promise<void>;
   stopRecurrence(id: string, fromMonth: string): Promise<void>;
-  saveTag(tag: Omit<Tag, "id" | "position"> & { id?: string }): Promise<void>;
+  saveTag(tag: Omit<Tag, "id" | "position" | "active"> & { id?: string }): Promise<void>;
+  setTagApplicability(tag: Pick<Tag, "name" | "color" | "type">, kind: Tag["kind"], enabled: boolean): Promise<void>;
   deleteTag(id: string): Promise<void>;
   saveProfile(profile: Profile): Promise<void>;
   enqueueNotification(candidate: NativeNotificationCandidate): Promise<void>;

@@ -47,12 +47,4 @@ export class BackupService {
     recovery.write(await encryptedSnapshot(this.repository, passphrase));
     await this.repository.importSnapshot(snapshot);
   }
-
-  async importLegacySnapshot(): Promise<void> {
-    const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
-    if (result.canceled) return;
-    const file = new File(result.assets[0].uri);
-    if (file.size > 75_000_000) throw new Error("O arquivo de migração é grande demais.");
-    await this.repository.importSnapshot(validateSnapshot(JSON.parse(await file.text())));
-  }
 }

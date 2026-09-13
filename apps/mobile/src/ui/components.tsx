@@ -23,10 +23,11 @@ const kindMeta: Record<TransactionKind, { label: string; icon: keyof typeof Ioni
 export function TransactionRow({ entry, currency, locale, onPress }: { entry: Transaction; currency: string; locale: string; onPress: () => void }) {
   const meta = kindMeta[entry.kind];
   const amountColor = entry.kind === "income" ? colors.green : colors.ink;
+  const description = entry.isCarryover ? "Saldo do mês anterior" : entry.description;
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.transaction, pressed && { opacity: 0.65 }]}>
     <View style={[styles.transactionIcon, { backgroundColor: `${kindColor[entry.kind]}18` }]}><Ionicons name={meta.icon} color={kindColor[entry.kind]} size={19} /></View>
     <View style={{ flex: 1 }}>
-      <Text style={styles.transactionName} numberOfLines={1}>{entry.description}</Text>
+      <Text style={styles.transactionName} numberOfLines={1}>{description}</Text>
       <Text style={styles.transactionMeta}>{entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {meta.label}{entry.installmentCount ? ` · ${entry.installmentNumber}/${entry.installmentCount}` : ""}{entry.recurrenceId ? " · Mensal" : ""}</Text>
     </View>
     <View style={{ alignItems: "flex-end" }}>
