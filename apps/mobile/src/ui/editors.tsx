@@ -111,7 +111,12 @@ function Field({ label, value, onChange, placeholder, keyboard = "default" }: { 
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput style={styles.input} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={colors.muted} keyboardType={keyboard} /></View>;
 }
 
-const tagColors = [colors.green, colors.red, colors.gold, colors.blue, "#8267A8", "#C06B3E"];
+const tagColors = [
+  colors.green, colors.red, colors.gold, colors.blue,
+  "#8267A8", "#C06B3E", "#2F7C78", "#A34F7A",
+  "#5969A8", "#3787A0", "#758641", "#8A6240",
+  "#D16A5B", "#B8668E", "#64748B", "#4B5563",
+];
 const kindLabels: Record<TransactionKind, string> = { income: "Receita", expense: "Despesa", bill: "Conta", investment: "Investimento" };
 
 export function EntityModal({ editor, close, saveTags, remove }: { editor: NonNullable<EntityEditor>; close: () => void; saveTags: (value: { name: string; color: string; type: TagType; kinds: TransactionKind[] }) => Promise<void>; remove?: () => void }) {
@@ -140,5 +145,5 @@ const styles = StyleSheet.create({
   recurrenceSwitch: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 17, paddingHorizontal: 13, borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.surface }, percentageBox: { marginBottom: 4, padding: 13, borderRadius: 12, backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: "#C6D8E5" }, estimateLine: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }, estimateFormula: { color: colors.muted, fontSize: 9, marginTop: 2 }, estimateValue: { color: colors.blue, fontSize: 14, fontWeight: "800" },
   overlay: { flex: 1, backgroundColor: "#18211CCC", justifyContent: "flex-end" }, dialog: { maxHeight: "90%", flexShrink: 1, backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
   checkGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 }, checkOption: { width: "48%", minHeight: 42, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 10, backgroundColor: colors.surface }, checkLabel: { color: colors.ink, fontSize: 11, fontWeight: "600" },
-  colorChoices: { flexDirection: "row", gap: 12, marginBottom: 22 }, colorChoice: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }, colorChoiceSelected: { borderWidth: 3, borderColor: colors.ink },
+  colorChoices: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 22 }, colorChoice: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }, colorChoiceSelected: { borderWidth: 3, borderColor: colors.ink },
 });

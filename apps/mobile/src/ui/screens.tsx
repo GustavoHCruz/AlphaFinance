@@ -67,10 +67,11 @@ function FinanceCharts({ data }: { data: Dashboard }) {
   const handlePage = (event: NativeSyntheticEvent<NativeScrollEvent>) => setPage(Math.round(event.nativeEvent.contentOffset.x / Math.max(1, pageWidth)));
   return <Card style={styles.chartCard}><View onLayout={(event) => setPageWidth(Math.round(event.nativeEvent.layout.width))}>
     <ScrollView horizontal pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={handlePage}>
-      <View style={[styles.chartPage, { width: pageWidth }]}><SectionTitle title="Fluxo dos últimos 6 meses" subtitle="Entradas, investimentos e saídas · deslize para categorias" /><CashFlow data={data} /></View>
+      <View style={[styles.chartPage, { width: pageWidth }]}><SectionTitle title="Fluxo dos últimos 6 meses" subtitle="Entradas, investimentos e saídas · deslize para detalhar" /><CashFlow data={data} /></View>
       <View style={[styles.chartPage, { width: pageWidth }]}><SectionTitle title="Pra onde foi seu dinheiro" subtitle="Despesas pagas por categoria neste mês" /><CategoryPie data={data} /></View>
+      <View style={[styles.chartPage, { width: pageWidth }]}><SectionTitle title="Gastos do mês por etiqueta" subtitle="Despesas com várias etiquetas aparecem em cada uma" /><LabelExpenses data={data} /></View>
     </ScrollView>
-    <View style={styles.pageDots}><View style={[styles.pageDot, page === 0 && styles.pageDotActive]} /><View style={[styles.pageDot, page === 1 && styles.pageDotActive]} /></View>
+    <View style={styles.pageDots}>{[0, 1, 2].map((index) => <View key={index} style={[styles.pageDot, page === index && styles.pageDotActive]} />)}</View>
   </View></Card>;
 }
 
@@ -98,6 +99,30 @@ function CategoryPie({ data }: { data: Dashboard }) {
   const size = 124, radius = 45, circumference = 2 * Math.PI * radius;
   let offset = 0;
   return <View style={styles.pieLayout}><View style={{ width: size, height: size }}><Svg width={size} height={size}><Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={colors.line} strokeWidth={23} />{slices.map((slice) => { const length = slice.amount / total * circumference; const dashOffset = -offset; offset += length; return <Circle key={slice.name} cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={slice.color} strokeWidth={23} strokeDasharray={`${length} ${circumference}`} strokeDashoffset={dashOffset} rotation={-90} origin={`${size / 2}, ${size / 2}`} />; })}</Svg><View style={styles.pieCenter}><Text style={styles.pieCenterLabel}>Total</Text><Text style={styles.pieCenterValue}>{formatMoney(total, data.profile.currency, data.profile.locale)}</Text></View></View><View style={styles.pieLegend}>{slices.map((slice) => <View key={slice.name} style={styles.legendRow}><View style={[styles.colorDot, { backgroundColor: slice.color }]} /><View style={{ flex: 1 }}><Text style={styles.legendName} numberOfLines={1}>{slice.name}</Text><Text style={styles.legendValue} numberOfLines={1}>{formatMoney(slice.amount, data.profile.currency, data.profile.locale)}</Text></View></View>)}</View></View>;
+}
+
+function LabelExpenses({ data }: { data: Dashboard }) {
+  const rows = useMemo(() => {
+    const tags = new Map(data.tags.map((tag) => [tag.id, tag]));
+    const grouped = new Map<string, { name: string; color: string; amount: number }>();
+    for (const entry of data.entries.filter((item) => !item.isCarryover && item.kind === "expense" && item.amount > 0)) {
+      const entryLabels = entry.labelIds.map((labelId) => tags.get(labelId)).filter((tag): tag is Tag => !!tag);
+      const labels = entryLabels.length ? entryLabels : [null];
+      for (const tag of labels) {
+        const name = tag?.name ?? "Sem etiqueta";
+        const key = name.trim().toLocaleLowerCase(data.profile.locale);
+        const current = grouped.get(key) ?? { name, color: tag?.color ?? colors.muted, amount: 0 };
+        current.amount += entry.amount;
+        grouped.set(key, current);
+      }
+    }
+    const sorted = [...grouped.values()].sort((a, b) => b.amount - a.amount);
+    if (sorted.length <= 5) return sorted;
+    return [...sorted.slice(0, 4), { name: "Outras etiquetas", color: colors.gold, amount: sorted.slice(4).reduce((sum, item) => sum + item.amount, 0) }];
+  }, [data.entries, data.profile.locale, data.tags]);
+  if (!rows.length) return <View style={styles.pieEmpty}><Ionicons name="pricetags-outline" size={34} color={colors.gold} /><Text style={styles.emptyInline}>Adicione etiquetas às despesas para comparar os gastos do mês.</Text></View>;
+  const max = Math.max(...rows.map((row) => row.amount));
+  return <View style={styles.labelChart}>{rows.map((row) => <View key={row.name} style={styles.labelChartRow}><View style={styles.labelChartHeading}><View style={styles.labelChartName}><View style={[styles.colorDot, { backgroundColor: row.color }]} /><Text style={styles.legendName} numberOfLines={1}>{row.name}</Text></View><Text style={styles.labelChartValue}>{formatMoney(row.amount, data.profile.currency, data.profile.locale)}</Text></View><View style={styles.labelTrack}><View style={[styles.labelBar, { width: `${Math.max(3, row.amount / max * 100)}%` as `${number}%`, backgroundColor: row.color }]} /></View></View>)}</View>;
 }
 
 export function Transactions({ data, filter, onFilter, refreshing, refresh, onEntry, onRecurrence, onDeleteRecurrence }: RefreshProps & { data: Dashboard; filter: TransactionFilter; onFilter: (filter: TransactionFilter) => void; onEntry: (entry: Transaction) => void; onRecurrence: (recurrence: Recurrence) => void; onDeleteRecurrence: (recurrence: Recurrence) => void }) {
@@ -168,6 +193,7 @@ const styles = StyleSheet.create({
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 }, summaryCard: { width: "48.5%", minHeight: 105, padding: 15 }, summaryDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 13 }, summaryLabel: { color: colors.muted, fontSize: 10, fontWeight: "700" }, summaryValue: { color: colors.ink, fontSize: 16, fontWeight: "800", marginTop: 7 },
   chartCard: { marginBottom: 12, overflow: "hidden" }, chartPage: { minHeight: 184 }, chart: { height: 128, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-around", paddingTop: 4 }, barGroup: { alignItems: "center", flex: 1 }, bars: { height: 96, flexDirection: "row", alignItems: "flex-end", gap: 2 }, bar: { width: 7, borderTopLeftRadius: 3, borderTopRightRadius: 3 }, barLabel: { color: colors.muted, fontSize: 9, marginTop: 7 }, pageDots: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 5 }, pageDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line }, pageDotActive: { width: 17, backgroundColor: colors.green },
   pieLayout: { minHeight: 128, flexDirection: "row", alignItems: "center", gap: 9 }, pieCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }, pieCenterLabel: { color: colors.muted, fontSize: 8 }, pieCenterValue: { color: colors.ink, fontSize: 9, fontWeight: "800", marginTop: 2 }, pieLegend: { flex: 1, flexDirection: "row", flexWrap: "wrap", columnGap: 5, rowGap: 5 }, legendRow: { width: "48%", minHeight: 27, flexDirection: "row", alignItems: "center", gap: 5 }, legendName: { color: colors.ink, fontSize: 8, fontWeight: "700" }, legendValue: { color: colors.muted, fontSize: 7, marginTop: 1 }, pieEmpty: { minHeight: 128, alignItems: "center", justifyContent: "center", gap: 10 },
+  labelChart: { minHeight: 128, gap: 8, paddingTop: 3 }, labelChartRow: { gap: 4 }, labelChartHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, labelChartName: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }, labelChartValue: { color: colors.ink, fontSize: 8, fontWeight: "700" }, labelTrack: { height: 7, overflow: "hidden", borderRadius: 4, backgroundColor: colors.line }, labelBar: { height: 7, borderRadius: 4 },
   sectionGap: { marginTop: 25 }, seeAll: { flexDirection: "row", alignItems: "center", gap: 3 }, checklistRow: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, checklistContent: { flex: 1, paddingVertical: 11 }, checklistAmount: { color: colors.ink, fontSize: 12, fontWeight: "700" }, completedText: { color: colors.muted, textDecorationLine: "line-through" }, congratulations: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 9 }, congratulationsText: { flex: 1, color: colors.green, fontSize: 12, fontWeight: "700" },
   recurrenceRow: { flexDirection: "row", alignItems: "stretch", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, recurrenceContent: { flex: 1, minHeight: 67, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11 }, deleteRecurrence: { width: 42, alignItems: "center", justifyContent: "center" },
   inboxCard: { marginBottom: 10 }, inboxTop: { flexDirection: "row", alignItems: "center", gap: 10 }, sourceIcon: { width: 36, height: 36, backgroundColor: colors.goldSoft, borderRadius: 11, justifyContent: "center", alignItems: "center" }, inboxAmount: { color: colors.ink, fontSize: 14, fontWeight: "800" }, inboxActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 16 },
