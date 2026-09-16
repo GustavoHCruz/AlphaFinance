@@ -7,6 +7,7 @@ import { BackupService } from "./src/application/backup-service";
 import { SQLiteFinanceRepository } from "./src/data/sqlite-finance-repository";
 import type { Dashboard, InboxEvent, Recurrence, TagType, Transaction, TransactionKind } from "./src/domain/models";
 import { AndroidNotificationProvider } from "./src/providers/android-notification-provider";
+import type { NotificationListenerStatus } from "./modules/alpha-native";
 import { EntityModal, TransactionEditor } from "./src/ui/editors";
 import { Home, Inbox, More, Transactions } from "./src/ui/screens";
 import { localMonth, monthLabel, moveMonth } from "./src/ui/format";
@@ -35,20 +36,23 @@ export default function App() {
   const [editor, setEditor] = useState<Editor>(null);
   const [entityEditor, setEntityEditor] = useState<EntityEditor>(null);
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<NotificationListenerStatus | null>(null);
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setRefreshing(true);
     try {
       await notificationProvider.ingest(repository);
-      const [dashboard, pending, access] = await Promise.all([
+      const [dashboard, pending, access, listenerStatus] = await Promise.all([
         repository.dashboard(month),
         repository.listInbox(),
         notificationProvider.isEnabled(),
+        notificationProvider.status(),
       ]);
       setData(dashboard);
       setInbox(pending);
       setNotificationEnabled(access);
+      setNotificationStatus(listenerStatus);
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível carregar os dados locais.");
@@ -94,7 +98,7 @@ export default function App() {
         {tab === "home" && <Home data={data} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} onNew={() => setEditor({})} onToggleDone={(entry) => action(() => repository.setTransactionDone(entry.id, !entry.done, !entry.done ? entry.expectedAmount ?? entry.amount : undefined))} onSeeAll={(filter) => { setTransactionFilter(filter); setTab("transactions"); }} />}
         {tab === "transactions" && <Transactions data={data} filter={transactionFilter} onFilter={setTransactionFilter} refreshing={refreshing} refresh={refresh} onEntry={(entry) => setEditor({ entry })} onRecurrence={(recurrence) => setEditor({ recurrence })} onDeleteRecurrence={(recurrence) => Alert.alert("Excluir recorrência?", "Os lançamentos anteriores permanecem. A ocorrência deste mês e as próximas serão removidas.", [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: () => void action(() => repository.stopRecurrence(recurrence.id, month)) }])} />}
         {tab === "inbox" && <Inbox events={inbox} data={data} refreshing={refreshing} refresh={refresh} onAccept={(event) => setEditor({ inbox: event })} onIgnore={(event) => action(() => repository.ignoreInbox(event.id))} />}
-        {tab === "more" && <More data={data} notificationEnabled={notificationEnabled} refreshing={refreshing} refresh={refresh} openEntity={setEntityEditor} action={action} backupService={backupService} repository={repository} notificationProvider={notificationProvider} />}
+        {tab === "more" && <More data={data} notificationEnabled={notificationEnabled} notificationStatus={notificationStatus} refreshing={refreshing} refresh={refresh} openEntity={setEntityEditor} action={action} backupService={backupService} repository={repository} notificationProvider={notificationProvider} />}
       </View>
       <BottomBar tab={tab} inboxCount={inbox.length} onTab={setTab} onNew={() => setEditor({})} />
     </>}
@@ -114,7 +118,7 @@ function BottomBar({ tab, inboxCount, onTab, onNew }: { tab: Tab; inboxCount: nu
   const insets = useSafeAreaInsets();
   const items: Array<{ id: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
     { id: "home", label: "Início", icon: "home-outline" },
-    { id: "transactions", label: "Movimentos", icon: "swap-horizontal-outline" },
+    { id: "transactions", label: "Movimentações", icon: "swap-horizontal-outline" },
     { id: "inbox", label: "Inbox", icon: "file-tray-outline" },
     { id: "more", label: "Mais", icon: "grid-outline" },
   ];

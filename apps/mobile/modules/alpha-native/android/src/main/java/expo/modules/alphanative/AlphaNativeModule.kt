@@ -1,7 +1,10 @@
 package expo.modules.alphanative
 
+import android.content.ComponentName
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import android.util.Base64
 import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.modules.Module
@@ -16,12 +19,19 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 class AlphaNativeModule : Module() {
+  private var rebindRequested = false
+
   override fun definition() = ModuleDefinition {
     Name("AlphaNative")
 
     AsyncFunction("isNotificationAccessEnabled") {
       val context = appContext.reactContext ?: return@AsyncFunction false
-      NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+      val enabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+      if (enabled && !rebindRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        NotificationListenerService.requestRebind(ComponentName(context, AlphaNotificationListenerService::class.java))
+        rebindRequested = true
+      }
+      enabled
     }
 
     AsyncFunction("openNotificationAccessSettings") {
@@ -35,6 +45,11 @@ class AlphaNativeModule : Module() {
     AsyncFunction("getPendingNotificationEvents") {
       val context = appContext.reactContext ?: throw IllegalStateException("Android context is unavailable")
       NotificationEventStore.peek(context).map { it.toMap() }
+    }
+
+    AsyncFunction("getNotificationListenerStatus") {
+      val context = appContext.reactContext ?: throw IllegalStateException("Android context is unavailable")
+      NotificationEventStore.status(context)
     }
 
     AsyncFunction("acknowledgeNotificationEvents") { sourceEventIds: List<String> ->

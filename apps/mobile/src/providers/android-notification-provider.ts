@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import AlphaNative from "../../modules/alpha-native";
+import type { NotificationListenerStatus } from "../../modules/alpha-native";
 import type { NativeNotificationCandidate } from "../domain/models";
 import type { FinancialEventProvider, FinanceRepository } from "../domain/repositories";
 
@@ -18,6 +19,15 @@ export class AndroidNotificationProvider implements FinancialEventProvider {
   async collect(): Promise<NativeNotificationCandidate[]> {
     if (Platform.OS !== "android") return [];
     return AlphaNative.getPendingNotificationEvents();
+  }
+
+  async status(): Promise<NotificationListenerStatus | null> {
+    if (Platform.OS !== "android") return null;
+    try {
+      return await AlphaNative.getNotificationListenerStatus();
+    } catch {
+      return null;
+    }
   }
 
   async ingest(repository: FinanceRepository): Promise<number> {

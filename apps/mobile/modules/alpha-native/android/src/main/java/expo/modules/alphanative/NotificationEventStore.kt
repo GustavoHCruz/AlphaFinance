@@ -3,6 +3,10 @@ package expo.modules.alphanative
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 data class StoredNotificationEvent(val sourceEventId: String, val institution: String, val amount: Long, val suggestedKind: String, val suggestedMethod: String, val description: String, val occurredAt: String, val confidence: Double) {
   fun toJson() = JSONObject().put("sourceEventId", sourceEventId).put("institution", institution).put("amount", amount).put("suggestedKind", suggestedKind).put("suggestedMethod", suggestedMethod).put("description", description).put("occurredAt", occurredAt).put("confidence", confidence)
@@ -12,6 +16,10 @@ data class StoredNotificationEvent(val sourceEventId: String, val institution: S
 object NotificationEventStore {
   private const val PREFS = "alphafinance_notification_inbox"
   private const val QUEUE = "structured_events"
+  private const val LAST_CONNECTED_AT = "last_connected_at"
+  private const val LAST_SUPPORTED_NOTIFICATION_AT = "last_supported_notification_at"
+  private const val LAST_PARSED_AT = "last_parsed_at"
+  private const val UNPARSED_SUPPORTED_COUNT = "unparsed_supported_count"
   private const val MAX_EVENTS = 100
   private val lock = Any()
 
@@ -37,5 +45,35 @@ object NotificationEventStore {
     val array = JSONArray()
     peek(context).filterNot { it.sourceEventId in sourceEventIds }.forEach { array.put(it.toJson()) }
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(QUEUE, array.toString()).apply()
+  }
+
+  fun markConnected(context: Context) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(LAST_CONNECTED_AT, System.currentTimeMillis()).apply()
+  }
+
+  fun markSupportedNotification(context: Context, parsed: Boolean) = synchronized(lock) {
+    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val editor = prefs.edit().putLong(LAST_SUPPORTED_NOTIFICATION_AT, System.currentTimeMillis())
+    if (parsed) editor.putLong(LAST_PARSED_AT, System.currentTimeMillis())
+    else editor.putInt(UNPARSED_SUPPORTED_COUNT, prefs.getInt(UNPARSED_SUPPORTED_COUNT, 0) + 1)
+    editor.apply()
+  }
+
+  fun status(context: Context): Map<String, Any?> {
+    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    return mapOf(
+      "lastConnectedAt" to prefs.instant(LAST_CONNECTED_AT),
+      "lastSupportedNotificationAt" to prefs.instant(LAST_SUPPORTED_NOTIFICATION_AT),
+      "lastParsedAt" to prefs.instant(LAST_PARSED_AT),
+      "unparsedSupportedCount" to prefs.getInt(UNPARSED_SUPPORTED_COUNT, 0),
+      "pendingEventCount" to peek(context).size,
+    )
+  }
+
+  private fun android.content.SharedPreferences.instant(key: String): String? {
+    val value = getLong(key, 0)
+    return if (value > 0) SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+      timeZone = TimeZone.getTimeZone("UTC")
+    }.format(Date(value)) else null
   }
 }

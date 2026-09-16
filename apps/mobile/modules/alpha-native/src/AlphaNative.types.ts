@@ -8,3 +8,11 @@ export type NativeNotificationCandidate = {
   occurredAt: string;
   confidence: number;
 };
+
+export type NotificationListenerStatus = {
+  lastConnectedAt: string | null;
+  lastSupportedNotificationAt: string | null;
+  lastParsedAt: string | null;
+  unparsedSupportedCount: number;
+  pendingEventCount: number;
+};

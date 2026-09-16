@@ -11,8 +11,10 @@ object InterNotificationParser {
 
   data class Parsed(val amount: Long, val suggestedKind: String, val suggestedMethod: String, val description: String, val confidence: Double)
 
+  fun supports(packageName: String) = packageName in supportedPackages
+
   fun parse(packageName: String, text: String): Parsed? {
-    if (packageName !in supportedPackages) return null
+    if (!supports(packageName)) return null
     val normalized = normalize(text)
     val amount = moneyPattern.find(normalized)?.groupValues?.getOrNull(1)?.let(::parseCents) ?: return null
     if (normalized.contains("pix recebido") || normalized.contains("recebeu um pix"))
