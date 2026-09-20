@@ -19,6 +19,8 @@ object NotificationEventStore {
   private const val LAST_CONNECTED_AT = "last_connected_at"
   private const val LAST_SUPPORTED_NOTIFICATION_AT = "last_supported_notification_at"
   private const val LAST_PARSED_AT = "last_parsed_at"
+  private const val LAST_SCAN_AT = "last_scan_at"
+  private const val LAST_SCAN_MATCH_COUNT = "last_scan_match_count"
   private const val UNPARSED_SUPPORTED_COUNT = "unparsed_supported_count"
   private const val MAX_EVENTS = 100
   private val lock = Any()
@@ -59,12 +61,21 @@ object NotificationEventStore {
     editor.apply()
   }
 
+  fun markScan(context: Context, matchCount: Int) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+      .putLong(LAST_SCAN_AT, System.currentTimeMillis())
+      .putInt(LAST_SCAN_MATCH_COUNT, matchCount)
+      .apply()
+  }
+
   fun status(context: Context): Map<String, Any?> {
     val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     return mapOf(
       "lastConnectedAt" to prefs.instant(LAST_CONNECTED_AT),
       "lastSupportedNotificationAt" to prefs.instant(LAST_SUPPORTED_NOTIFICATION_AT),
       "lastParsedAt" to prefs.instant(LAST_PARSED_AT),
+      "lastScanAt" to prefs.instant(LAST_SCAN_AT),
+      "lastScanMatchCount" to prefs.getInt(LAST_SCAN_MATCH_COUNT, 0),
       "unparsedSupportedCount" to prefs.getInt(UNPARSED_SUPPORTED_COUNT, 0),
       "pendingEventCount" to peek(context).size,
     )

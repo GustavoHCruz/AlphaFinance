@@ -3,15 +3,19 @@ package expo.modules.alphanative
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.util.Base64
 import androidx.core.app.NotificationManagerCompat
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -19,19 +23,42 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 class AlphaNativeModule : Module() {
-  private var rebindRequested = false
-
   override fun definition() = ModuleDefinition {
     Name("AlphaNative")
 
     AsyncFunction("isNotificationAccessEnabled") {
       val context = appContext.reactContext ?: return@AsyncFunction false
-      val enabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
-      if (enabled && !rebindRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        NotificationListenerService.requestRebind(ComponentName(context, AlphaNotificationListenerService::class.java))
-        rebindRequested = true
+      NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
+    AsyncFunction("scanActiveNotifications") { promise: Promise ->
+      val context = appContext.reactContext
+      if (context == null) {
+        promise.resolve(false)
+        return@AsyncFunction
       }
-      enabled
+      val enabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+      if (!enabled) {
+        promise.resolve(false)
+        return@AsyncFunction
+      }
+
+      val settled = AtomicBoolean(false)
+      val callback: (Boolean) -> Unit = { succeeded ->
+        if (settled.compareAndSet(false, true)) promise.resolve(succeeded)
+      }
+      val alreadyConnected = AlphaNotificationListenerService.requestScan(callback)
+      if (!alreadyConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        try {
+          NotificationListenerService.requestRebind(ComponentName(context, AlphaNotificationListenerService::class.java))
+          Handler(Looper.getMainLooper()).postDelayed({
+            if (AlphaNotificationListenerService.cancelPendingScan(callback)) callback(false)
+          }, SCAN_TIMEOUT_MILLIS)
+        } catch (_: Exception) {
+          AlphaNotificationListenerService.cancelPendingScan(callback)
+          callback(false)
+        }
+      }
     }
 
     AsyncFunction("openNotificationAccessSettings") {
@@ -113,6 +140,7 @@ class AlphaNativeModule : Module() {
   private fun decode(value: String) = Base64.decode(value, Base64.NO_WRAP)
 
   companion object {
+    private const val SCAN_TIMEOUT_MILLIS = 2_000L
     private const val KDF_ITERATIONS = 600_000
     private const val SALT_BYTES = 16
     private const val IV_BYTES = 12

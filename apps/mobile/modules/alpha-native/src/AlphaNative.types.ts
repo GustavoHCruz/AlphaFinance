@@ -13,6 +13,8 @@ export type NotificationListenerStatus = {
   lastConnectedAt: string | null;
   lastSupportedNotificationAt: string | null;
   lastParsedAt: string | null;
+  lastScanAt: string | null;
+  lastScanMatchCount: number;
   unparsedSupportedCount: number;
   pendingEventCount: number;
 };

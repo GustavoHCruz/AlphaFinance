@@ -3,6 +3,7 @@ import type { NativeNotificationCandidate, NotificationListenerStatus } from "./
 
 declare class AlphaNativeModule extends NativeModule<{}> {
   isNotificationAccessEnabled(): Promise<boolean>;
+  scanActiveNotifications(): Promise<boolean>;
   openNotificationAccessSettings(): Promise<void>;
   getPendingNotificationEvents(): Promise<NativeNotificationCandidate[]>;
   getNotificationListenerStatus(): Promise<NotificationListenerStatus>;

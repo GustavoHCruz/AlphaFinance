@@ -30,7 +30,7 @@ SQLite → snapshot validado → AES-256-GCM → arquivo escolhido pelo usuário
 
 O SQLite é a única fonte de verdade. O domínio não depende de React Native, Android ou SQLite. O banco usa migrations incrementais por `PRAGMA user_version`; valores monetários são armazenados em centavos.
 
-O módulo Android usa `NotificationListenerService` somente após autorização explícita. O parser do Banco Inter é separado do listener e o texto bruto das notificações não é persistido. A capacidade é opcional e não impede o uso manual ou uma futura versão iOS.
+O módulo Android usa a autorização de acesso às notificações somente para varrer, ao abrir ou retomar o AlphaFinance, notificações do Banco Inter que ainda estejam visíveis. Não há processamento contínuo com a interface fechada. O parser é separado da ponte exigida pelo Android e o texto bruto das notificações não é persistido. A capacidade é opcional e não impede o uso manual ou uma futura versão iOS.
 
 Os backups usam AES-256-GCM com chave derivada por PBKDF2-HMAC-SHA-256. O arquivo é validado antes da restauração e a senha não é armazenada pelo aplicativo.
 

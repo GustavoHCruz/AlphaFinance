@@ -18,6 +18,8 @@ export class AndroidNotificationProvider implements FinancialEventProvider {
 
   async collect(): Promise<NativeNotificationCandidate[]> {
     if (Platform.OS !== "android") return [];
+    if (!await AlphaNative.isNotificationAccessEnabled()) return [];
+    await AlphaNative.scanActiveNotifications();
     return AlphaNative.getPendingNotificationEvents();
   }
 
