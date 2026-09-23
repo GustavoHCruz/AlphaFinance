@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackupService } from "./src/application/backup-service";
@@ -38,31 +38,48 @@ export default function App() {
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<NotificationListenerStatus | null>(null);
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
+  const refreshQueue = useRef<Promise<void>>(Promise.resolve());
+  const refreshInFlight = useRef<{ month: string; task: Promise<void> } | null>(null);
+  const currentMonth = useRef(month);
+  currentMonth.current = month;
 
-  const refresh = useCallback(async (quiet = false) => {
+  const refresh = useCallback((quiet = false) => {
+    const requestedMonth = month;
+    if (refreshInFlight.current?.month === requestedMonth) return refreshInFlight.current.task;
     if (!quiet) setRefreshing(true);
-    try {
-      await notificationProvider.ingest(repository);
-      const [dashboard, pending, access, listenerStatus] = await Promise.all([
-        repository.dashboard(month),
-        repository.listInbox(),
-        notificationProvider.isEnabled(),
-        notificationProvider.status(),
-      ]);
-      setData(dashboard);
-      setInbox(pending);
-      setNotificationEnabled(access);
-      setNotificationStatus(listenerStatus);
-      setError(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível carregar os dados locais.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const task = refreshQueue.current.then(async () => {
+      try {
+        await notificationProvider.ingest(repository);
+        const dashboard = await repository.dashboard(requestedMonth);
+        const pending = await repository.listInbox();
+        const [access, listenerStatus] = await Promise.all([
+          notificationProvider.isEnabled(),
+          notificationProvider.status(),
+        ]);
+        if (currentMonth.current !== requestedMonth) return;
+        setData(dashboard);
+        setInbox(pending);
+        setNotificationEnabled(access);
+        setNotificationStatus(listenerStatus);
+        setError(null);
+      } catch (reason) {
+        if (currentMonth.current === requestedMonth) {
+          setError(reason instanceof Error ? reason.message : "Não foi possível carregar os dados locais.");
+        }
+      } finally {
+        if (refreshInFlight.current?.task === task) refreshInFlight.current = null;
+        if (currentMonth.current === requestedMonth) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    });
+    refreshQueue.current = task;
+    refreshInFlight.current = { month: requestedMonth, task };
+    return task;
   }, [month]);
 
-  useEffect(() => { void repository.initialize().then(() => refresh(true)); }, [refresh]);
+  useEffect(() => { void refresh(true); }, [refresh]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refresh(true);

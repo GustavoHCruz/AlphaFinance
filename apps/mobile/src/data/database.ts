@@ -257,26 +257,35 @@ const migrations: Array<{ version: number; sql: string; foreignKeysOff?: boolean
 ];
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  databasePromise ??= SQLite.openDatabaseAsync(DATABASE_NAME).then(async (db) => {
-    await db.execAsync("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
-    const result = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-    let version = result?.user_version ?? 0;
-    for (const migration of migrations) {
-      if (migration.version <= version) continue;
-      if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = OFF");
-      try {
-        await db.withExclusiveTransactionAsync(async (tx) => {
-          await tx.execAsync(migration.sql);
-          const violations = await tx.getAllAsync("PRAGMA foreign_key_check");
-          if (violations.length) throw new Error(`A migração ${migration.version} criou referências inválidas.`);
-          await tx.execAsync(`PRAGMA user_version = ${migration.version}`);
-        });
-      } finally {
-        if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = ON");
+  databasePromise ??= (async () => {
+    const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+    try {
+      await db.execAsync("PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+      const result = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
+      let version = result?.user_version ?? 0;
+      for (const migration of migrations) {
+        if (migration.version <= version) continue;
+        if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = OFF");
+        try {
+          await db.withExclusiveTransactionAsync(async (tx) => {
+            await tx.execAsync(migration.sql);
+            const violations = await tx.getAllAsync("PRAGMA foreign_key_check");
+            if (violations.length) throw new Error(`A migração ${migration.version} criou referências inválidas.`);
+            await tx.execAsync(`PRAGMA user_version = ${migration.version}`);
+          });
+        } finally {
+          if (migration.foreignKeysOff) await db.execAsync("PRAGMA foreign_keys = ON");
+        }
+        version = migration.version;
       }
-      version = migration.version;
+      return db;
+    } catch (error) {
+      await db.closeAsync().catch(() => {});
+      throw error;
     }
-    return db;
+  })().catch((error) => {
+    databasePromise = null;
+    throw error;
   });
   return databasePromise;
 }

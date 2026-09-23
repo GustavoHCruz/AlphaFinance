@@ -10,7 +10,7 @@
       </intent-filter>
       <meta-data
         android:name="android.service.notification.default_autobind_listenerservice"
-        android:value="false" />
+        android:value="true" />
     </service>
   </application>
 </manifest>

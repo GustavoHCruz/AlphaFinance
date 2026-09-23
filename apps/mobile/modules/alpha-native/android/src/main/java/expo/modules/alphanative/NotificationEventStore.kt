@@ -21,6 +21,7 @@ object NotificationEventStore {
   private const val LAST_PARSED_AT = "last_parsed_at"
   private const val LAST_SCAN_AT = "last_scan_at"
   private const val LAST_SCAN_MATCH_COUNT = "last_scan_match_count"
+  private const val LAST_BACKGROUND_NOTIFICATION_AT = "last_background_notification_at"
   private const val UNPARSED_SUPPORTED_COUNT = "unparsed_supported_count"
   private const val MAX_EVENTS = 100
   private val lock = Any()
@@ -68,6 +69,12 @@ object NotificationEventStore {
       .apply()
   }
 
+  fun markBackgroundNotification(context: Context) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+      .putLong(LAST_BACKGROUND_NOTIFICATION_AT, System.currentTimeMillis())
+      .apply()
+  }
+
   fun status(context: Context): Map<String, Any?> {
     val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     return mapOf(
@@ -76,6 +83,7 @@ object NotificationEventStore {
       "lastParsedAt" to prefs.instant(LAST_PARSED_AT),
       "lastScanAt" to prefs.instant(LAST_SCAN_AT),
       "lastScanMatchCount" to prefs.getInt(LAST_SCAN_MATCH_COUNT, 0),
+      "lastBackgroundNotificationAt" to prefs.instant(LAST_BACKGROUND_NOTIFICATION_AT),
       "unparsedSupportedCount" to prefs.getInt(UNPARSED_SUPPORTED_COUNT, 0),
       "pendingEventCount" to peek(context).size,
     )

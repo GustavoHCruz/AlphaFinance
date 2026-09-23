@@ -76,7 +76,7 @@ class AlphaNativeModule : Module() {
 
     AsyncFunction("getNotificationListenerStatus") {
       val context = appContext.reactContext ?: throw IllegalStateException("Android context is unavailable")
-      NotificationEventStore.status(context)
+      NotificationEventStore.status(context) + ("listenerConnected" to AlphaNotificationListenerService.isConnected())
     }
 
     AsyncFunction("acknowledgeNotificationEvents") { sourceEventIds: List<String> ->

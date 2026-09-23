@@ -1,6 +1,8 @@
 package expo.modules.alphanative
 
 import android.app.Notification
+import android.content.ComponentName
+import android.os.Build
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -24,6 +26,9 @@ class AlphaNotificationListenerService : NotificationListenerService() {
     synchronized(connectionLock) {
       if (connectedInstance === this) connectedInstance = null
     }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      runCatching { NotificationListenerService.requestRebind(ComponentName(this, AlphaNotificationListenerService::class.java)) }
+    }
   }
 
   override fun onDestroy() {
@@ -31,6 +36,12 @@ class AlphaNotificationListenerService : NotificationListenerService() {
       if (connectedInstance === this) connectedInstance = null
     }
     super.onDestroy()
+  }
+
+  override fun onNotificationPosted(notification: StatusBarNotification) {
+    if (!InterNotificationParser.supports(notification.packageName)) return
+    NotificationEventStore.markBackgroundNotification(applicationContext)
+    capture(notification)
   }
 
   private fun scanVisibleNotifications(): Int {
@@ -86,7 +97,6 @@ class AlphaNotificationListenerService : NotificationListenerService() {
         }
       }
       val succeeded = runCatching { instance.scanVisibleNotifications() }.isSuccess
-      instance.requestUnbind()
       onComplete(succeeded)
       return true
     }
@@ -102,7 +112,10 @@ class AlphaNotificationListenerService : NotificationListenerService() {
       if (callbacks.isEmpty()) return
       val succeeded = runCatching { instance.scanVisibleNotifications() }.isSuccess
       callbacks.forEach { it(succeeded) }
-      instance.requestUnbind()
+    }
+
+    fun isConnected(): Boolean = synchronized(connectionLock) {
+      connectedInstance != null
     }
   }
 }
