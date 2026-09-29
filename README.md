@@ -1,40 +1,38 @@
 # AlphaFinance
 
-Aplicativo mobile local-first de controle financeiro pessoal. A versão 1.0 funciona integralmente offline no Android: cada instalação mantém seus próprios dados em SQLite e não depende de API, servidor ou conta online.
+A local-first mobile app for personal finance management. Version 1.0 works entirely offline on Android: each installation maintains its own data in SQLite and does not rely on an API, server, or online account.
 
-## O que está incluído
+## What's included
 
-- Receitas, despesas, contas e investimentos.
-- Recorrências mensais editáveis.
-- Categorias e etiquetas configuráveis por tipo de movimentação.
-- Saldo do mês anterior transportado automaticamente.
-- Resumo mensal, fluxo de seis meses e distribuição de gastos por categoria.
-- Inbox para revisar sinais financeiros antes de criar uma movimentação.
-- Captura opcional de notificações do Banco Inter pelo recurso oficial do Android.
-- Backup e restauração criptografados pelo seletor de arquivos do sistema, incluindo provedores como Google Drive.
+- Income, expenses, accounts, and investments.
+- Editable recurring transactions.
+- Categories and tags configurable by transaction type.
+- Automatic carry-over of the previous month's balance.
+- Monthly summary, six-month cash flow, and spending distribution by category.
+- Inbox for reviewing financial signals before creating a transaction.
+- Optional capture of Banco Inter notifications via the official Android feature.
+- Encrypted backup and restore using the system file picker, supporting providers like Google Drive.
 
-## Arquitetura
+## Architecture
 
 ```text
-UI React Native
-      ↓
-domínio financeiro em TypeScript
-      ↓
-interfaces de repositories
-      ↓
-SQLite local
+React Native UI
+↓
+Financial domain in TypeScript
+↓
+Repository interfaces
+↓
+Local SQLite
 
-providers → FinancialEvent → Inbox → revisão → movimentação
-SQLite → snapshot validado → AES-256-GCM → arquivo escolhido pelo usuário
+providers → FinancialEvent → Inbox → review → transaction
+SQLite → validated snapshot → AES-256-GCM → user-selected file
 ```
 
-O SQLite é a única fonte de verdade. O domínio não depende de React Native, Android ou SQLite. O banco usa migrations incrementais por `PRAGMA user_version`; valores monetários são armazenados em centavos.
+SQLite is the single source of truth. The domain logic is independent of React Native, Android, or SQLite. The database uses incremental migrations via `PRAGMA user_version`; monetary values ​​are stored in cents.
 
-Os backups usam AES-256-GCM com chave derivada por PBKDF2-HMAC-SHA-256. O arquivo é validado antes da restauração e a senha não é armazenada pelo aplicativo.
+Backups use AES-256-GCM with a key derived via PBKDF2-HMAC-SHA-256. The file is validated before restoration, and the password is not stored by the app. ## Android Development
 
-## Desenvolvimento Android
-
-Ambiente validado: Node.js 24, JDK 17, Android SDK/Platform 36 e Android Build Tools 36.
+Validated environment: Node.js 24, JDK 17, Android SDK/Platform 36, and Android Build Tools 36.
 
 ```powershell
 npm install
@@ -44,42 +42,40 @@ npm run test:native:android --workspace apps/mobile
 npm run mobile:android
 ```
 
-Para regenerar o projeto Android e criar o APK release:
+To regenerate the Android project and create the release APK:
 
 ```powershell
 npm run prebuild:android --workspace apps/mobile
 npm run mobile:apk
 ```
 
-O APK é gerado em `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`. A cópia distribuível pode ser colocada em `dist/`, que não é versionada; para um GitHub Release, anexe o APK manualmente à versão publicada.
+The APK is generated at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`. The distributable copy can be placed in `dist/`, which is not version-controlled; for a GitHub Release, manually attach the APK to the published version.
 
-Para usar um aparelho, habilite as opções do desenvolvedor e a depuração USB, conecte-o e confirme com `adb devices`. Depois execute:
+To use a physical device, enable developer options and USB debugging, connect the device, and verify it using `adb devices`. Then run:
 
 ```powershell
 npm run android:device --workspace apps/mobile
 ```
 
-## Assinatura das versões
+## Signing Releases
 
-A versão 1.0 e suas futuras atualizações devem ser assinadas com a chave oficial mantida fora do repositório em `%USERPROFILE%\Documents\AlphaFinance-signing`. A variável de usuário `ALPHAFINANCE_SIGNING_PROPERTIES` aponta para o arquivo `signing.properties` dessa pasta.
+Version 1.0 and future updates must be signed using the official key kept outside the repository at `%USERPROFILE%\Documents\AlphaFinance-signing`. The user environment variable `ALPHAFINANCE_SIGNING_PROPERTIES` points to the `signing.properties` file in that folder.
 
-Faça backup privado da pasta inteira. Nunca envie a chave ou o `signing.properties` ao GitHub. Sem eles, o Android não aceitará uma nova versão como atualização do aplicativo instalado.
+Keep a private backup of the entire folder. Never push the key or `signing.properties` to GitHub. Without them, Android will not accept a new version as an update to the installed app.
 
-Antes de gerar uma nova versão:
+Before generating a new release:
 
-1. Atualize `version` e incremente `android.versionCode` em `apps/mobile/app.json`.
-2. Execute os testes, o `expo-doctor` e gere o APK release.
-3. Instale o APK como atualização em um aparelho com dados reais de teste.
-4. Confirme backup, restauração, Inbox e inicialização offline.
+1. Update `version` and increment `android.versionCode` in `apps/mobile/app.json`.
+2. Run tests and `expo-doctor`, then generate the release APK.
+3. Install the APK as an update on a device containing real test data.
+4. Verify backup, restore, Inbox functionality, and offline startup. The APK's SHA-256 hash is optional and serves solely to verify that the distributed file has not been altered.
 
-O SHA-256 do APK é opcional e serve apenas para conferir se o arquivo distribuído não foi alterado.
+## Direction for future iterations
 
-## Direção para futuras iterações
+- Preserve migrations and backup compatibility when evolving the database.
+- Keep the UI, domain, and repositories shareable with iOS.
+- Treat the notification listener as an exclusive, optional Android capability.
+- Add new parsers/providers—such as for CSV or other institutions—without coupling them to the Inbox.
+- Continue without analytics, telemetry, mandatory backend services, or broad permissions.
 
-- Preservar migrations e compatibilidade de backup ao evoluir o banco.
-- Manter UI, domínio e repositories compartilháveis com iOS.
-- Tratar o listener de notificações como capacidade exclusiva e opcional do Android.
-- Adicionar novos parsers/providers sem acoplá-los ao Inbox, como CSV ou outras instituições.
-- Continuar sem analytics, telemetria, backend obrigatório ou permissões amplas.
-
-Consulte a [política de privacidade](PRIVACY.md) antes de introduzir dependências ou integrações.
+Consult the [privacy policy](PRIVACY.md) before introducing dependencies or integrations.
